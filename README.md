@@ -4,8 +4,6 @@
 
 <p align="left">
   <a href="https://pypi.org/project/byzpy/"><img src="https://img.shields.io/pypi/v/byzpy.svg?logo=pypi&label=PyPI" alt="PyPI"></a>
-  <a href="https://pypi.org/project/byzpy/"><img src="https://img.shields.io/pypi/pyversions/byzpy.svg?logo=python&label=Python" alt="Python versions"></a>
-  <a href="https://github.com/Byzpy/byzpy/actions/workflows/tests.yml"><img src="https://github.com/Byzpy/byzpy/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
   <a href="https://codecov.io/gh/Byzpy/byzpy"><img src="https://codecov.io/gh/Byzpy/byzpy/branch/main/graph/badge.svg" alt="Codecov"></a>
   <a href="https://byzpy.github.io/byzpy/"><img src="https://img.shields.io/badge/docs-sphinx-blue?logo=readthedocs" alt="Docs"></a>
 </p>
