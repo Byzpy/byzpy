@@ -12,7 +12,6 @@
 - 🔐 **Byzantine robustness built-in** – drop-in aggregators (Krum, MDA, trimmed mean, etc.) and attack simulators.
 - 🎛️ **Unified actor runtime** – threads, processes, GPUs, TCP/UCX remotes share a single channel abstraction.
 - 🧭 **Declarative computation graphs** – author heterogeneous pipelines while keeping scheduling deterministic.
-- 📦 **Examples and benchmarks** – PS / P2P MNIST demos plus ActorPool benchmarks you can reproduce.
 - 📚 **Full docs & CLI** – Sphinx site, `byzpy` helper CLI, and contributor-friendly guides.
 
 ## 🚀 Quick Start
