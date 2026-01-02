@@ -18,10 +18,20 @@ def _load_subclasses(package: str, base: Type) -> List[str]:
         return []
     results = set()
     for mod_info in pkgutil.walk_packages(module.__path__, module.__name__ + "."):
-        mod = importlib.import_module(mod_info.name)
+        # Skip test modules
+        if "tests" in mod_info.name.split("."):
+            continue
+        
+        try:
+            mod = importlib.import_module(mod_info.name)
+        except ImportError:
+            continue
+
         for name, obj in inspect.getmembers(mod, inspect.isclass):
             if issubclass(obj, base) and obj is not base:
-                results.add(f"{mod.__name__}.{name}")
+                # Only include the class if it is defined in this module
+                if obj.__module__ == mod.__name__:
+                    results.add(f"{mod.__name__}.{name}")
     return sorted(results)
 
 

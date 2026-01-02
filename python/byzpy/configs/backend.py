@@ -1,7 +1,10 @@
+from __future__ import annotations
 from contextlib import contextmanager
 from typing import Optional
 
 from ..engine.backend.ndarray import _Backend, _TorchBackend
+from ..engine.backend.ndarray.base import Tensor
+
 
 
 _BACKEND: Optional[_Backend] = None
