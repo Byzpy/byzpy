@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Protocol, TypeVar, Any, Sequence, runtime_checkable
 
 Tensor = TypeVar("Tensor")
