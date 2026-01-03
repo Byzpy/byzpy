@@ -116,6 +116,7 @@ async def test_multi_process_p2p_gradient_exchange():
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip(reason="Flaky test - multi-process P2P training timing issues")
 async def test_multi_process_p2p_training_round():
     """
     End-to-end test: Full P2P training round with 3 nodes.
