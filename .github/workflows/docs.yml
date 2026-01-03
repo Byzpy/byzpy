@@ -7,11 +7,6 @@ on:
       - "docs/**"
       - "python/byzpy/**"
       - ".github/workflows/docs.yml"
-  pull_request:
-    branches: ["main"]
-    paths:
-      - "docs/**"
-      - "python/byzpy/**"
   workflow_dispatch:
 
 permissions:
