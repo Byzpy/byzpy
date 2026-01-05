@@ -1,0 +1,44 @@
+{
+  "training": {
+    "rounds": 50,
+    "batch_size": 64,
+    "learning_rate": 0.05
+  },
+  "nodes": [
+    {
+      "id": 0,
+      "host": "localhost",
+      "port": 8880,
+      "type": "honest",
+      "bind_host": "0.0.0.0"
+    },
+    {
+      "id": 1,
+      "host": "localhost",
+      "port": 8881,
+      "type": "honest",
+      "bind_host": "0.0.0.0"
+    },
+    {
+      "id": 2,
+      "host": "localhost",
+      "port": 8882,
+      "type": "honest",
+      "bind_host": "0.0.0.0"
+    },
+    {
+      "id": 3,
+      "host": "localhost",
+      "port": 8883,
+      "type": "honest",
+      "bind_host": "0.0.0.0"
+    },
+    {
+      "id": 4,
+      "host": "localhost",
+      "port": 8884,
+      "type": "byzantine",
+      "bind_host": "0.0.0.0"
+    }
+  ]
+}

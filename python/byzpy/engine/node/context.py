@@ -705,4 +705,357 @@ class RemoteContext(NodeContext):
         self._client = None
 
 
-__all__ = ["NodeContext", "InProcessContext", "ProcessContext", "RemoteContext"]
+class MeshRemoteContext(NodeContext):
+    """
+    Node context for fully distributed peer-to-peer mesh communication.
+
+    Each node runs its own TCP server and connects directly to all peer nodes.
+    No central server required - messages are sent directly between peers.
+
+    Architecture:
+        ┌───────────────┐         ┌───────────────┐
+        │   Node 0      │◄───────►│   Node 1      │
+        │ (Server A)    │   TCP   │ (Server B)    │
+        └───────┬───────┘         └───────┬───────┘
+                │                         │
+                │         TCP             │
+                │                         │
+        ┌───────┴─────────────────────────┴───────┐
+        │                                         │
+        ▼                                         ▼
+    ┌───────────────┐                     ┌───────────────┐
+    │   Node 2      │◄───────────────────►│   Node 3      │
+    │ (Server C)    │         TCP         │ (Server D)    │
+    └───────────────┘                     └───────────────┘
+
+    Usage:
+        peer_addresses = {
+            "1": ("192.168.1.101", 8888),
+            "2": ("192.168.1.102", 8888),
+        }
+        context = MeshRemoteContext(
+            local_host="0.0.0.0",
+            local_port=8888,
+            peer_addresses=peer_addresses,
+        )
+    """
+
+    def __init__(
+        self,
+        local_host: str,
+        local_port: int,
+        peer_addresses: Dict[str, tuple],
+        connect_timeout: float = 5.0,
+        reconnect_interval: float = 2.0,
+    ):
+        """
+        Initialize mesh remote context.
+
+        Args:
+            local_host: Host to bind local server (e.g., "0.0.0.0")
+            local_port: Port to bind local server
+            peer_addresses: Dict mapping node_id -> (host, port) for all peers
+            connect_timeout: Timeout for connecting to peers (default: 5s)
+            reconnect_interval: Interval between reconnection attempts (default: 2s)
+        """
+        self.local_host = local_host
+        self.local_port = local_port
+        self.peer_addresses = peer_addresses
+        self.connect_timeout = connect_timeout
+        self.reconnect_interval = reconnect_interval
+
+        self._node: Optional["DecentralizedNode"] = None
+        self._running = False
+
+        # Local server for accepting incoming connections
+        self._local_server: Optional[asyncio.Server] = None
+        self._serve_task: Optional[asyncio.Task] = None
+
+        # Outbound connections to peers (node_id -> RemoteNodeClient)
+        self._peer_clients: Dict[str, Any] = {}
+
+        # Inbound connections from peers (node_id -> StreamWriter)
+        self._inbound_connections: Dict[str, asyncio.StreamWriter] = {}
+        self._inbound_writers: Dict[asyncio.StreamWriter, str] = {}
+
+        # Message inbox for received messages
+        self._inbox: asyncio.Queue = asyncio.Queue()
+
+        # Connection monitor task
+        self._monitor_task: Optional[asyncio.Task] = None
+
+    async def start(self, node: "DecentralizedNode") -> None:
+        """Start the context, local server, and connect to peers."""
+        if self._running:
+            return
+
+        from .remote_client import RemoteNodeClient
+
+        self._node = node
+        self._running = True
+
+        # 1. Start local TCP server to accept incoming connections
+        self._local_server = await asyncio.start_server(
+            self._handle_inbound_connection,
+            self.local_host,
+            self.local_port,
+        )
+        self._serve_task = asyncio.create_task(self._local_server.serve_forever())
+
+        print(
+            f"[MeshContext {node.node_id}] Local server started on "
+            f"{self.local_host}:{self.local_port}"
+        )
+
+        # 2. Wait a moment for all servers to start
+        await asyncio.sleep(0.5)
+
+        # 3. Connect to all peer servers
+        for peer_id, (host, port) in self.peer_addresses.items():
+            if str(peer_id) == str(node.node_id):
+                continue  # Don't connect to self
+
+            try:
+                client = RemoteNodeClient(host, port)
+                await client.connect(timeout=self.connect_timeout)
+                await client.register_node(str(node.node_id))
+                self._peer_clients[str(peer_id)] = client
+                print(f"[MeshContext {node.node_id}] Connected to peer {peer_id} at {host}:{port}")
+            except Exception as e:
+                print(
+                    f"[MeshContext {node.node_id}] Failed to connect to peer {peer_id} "
+                    f"at {host}:{port}: {e}"
+                )
+                # Will retry via connection monitor
+
+        # 4. Start connection monitor for reconnection
+        self._monitor_task = asyncio.create_task(self._connection_monitor())
+
+    async def _handle_inbound_connection(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        """Handle incoming connection from a peer."""
+        from .remote_client import deserialize_message, serialize_message
+
+        peer_addr = writer.get_extra_info("peername")
+        peer_node_id: Optional[str] = None
+
+        try:
+            while self._running:
+                try:
+                    # Read length prefix
+                    length_bytes = await asyncio.wait_for(reader.readexactly(4), timeout=1.0)
+                    length = int.from_bytes(length_bytes, byteorder="big")
+
+                    # Read message
+                    data = await asyncio.wait_for(reader.readexactly(length), timeout=5.0)
+                    msg = deserialize_message(data)
+
+                    # Handle registration message
+                    if msg.get("type") == "_register_node":
+                        peer_node_id = msg.get("node_id")
+                        if peer_node_id:
+                            self._inbound_connections[peer_node_id] = writer
+                            self._inbound_writers[writer] = peer_node_id
+                            print(
+                                f"[MeshContext {self._node.node_id}] "
+                                f"Peer {peer_node_id} connected from {peer_addr}"
+                            )
+                        continue
+
+                    # Regular message - put in inbox
+                    await self._inbox.put(
+                        {
+                            "from": msg.get("from", peer_node_id or "unknown"),
+                            "type": msg.get("type", "unknown"),
+                            "payload": msg.get("payload"),
+                        }
+                    )
+
+                except asyncio.TimeoutError:
+                    continue
+                except asyncio.IncompleteReadError:
+                    break
+                except Exception:
+                    if self._running:
+                        continue
+                    break
+
+        except asyncio.CancelledError:
+            pass
+        finally:
+            try:
+                writer.close()
+                await writer.wait_closed()
+            except Exception:
+                pass
+
+            if peer_node_id and peer_node_id in self._inbound_connections:
+                del self._inbound_connections[peer_node_id]
+            if writer in self._inbound_writers:
+                del self._inbound_writers[writer]
+
+    async def _connection_monitor(self) -> None:
+        """Monitor and reconnect failed connections."""
+        from .remote_client import RemoteNodeClient
+
+        while self._running:
+            await asyncio.sleep(self.reconnect_interval)
+
+            if not self._running:
+                break
+
+            for peer_id, (host, port) in self.peer_addresses.items():
+                peer_id_str = str(peer_id)
+                if self._node and peer_id_str == str(self._node.node_id):
+                    continue
+
+                client = self._peer_clients.get(peer_id_str)
+                if client is None or not client.is_connected():
+                    try:
+                        new_client = RemoteNodeClient(host, port)
+                        await new_client.connect(timeout=self.connect_timeout)
+                        if self._node:
+                            await new_client.register_node(str(self._node.node_id))
+                        self._peer_clients[peer_id_str] = new_client
+                        print(
+                            f"[MeshContext {self._node.node_id}] "
+                            f"Reconnected to peer {peer_id_str}"
+                        )
+                    except Exception:
+                        pass  # Will retry next iteration
+
+    async def send_message(self, to_node_id: str, message_type: str, payload: Any) -> None:
+        """
+        Send a message directly to a peer node.
+
+        Args:
+            to_node_id: Target node ID
+            message_type: Message type
+            payload: Message payload
+        """
+        if not self._running:
+            raise RuntimeError("MeshRemoteContext is not started")
+
+        to_node_id_str = str(to_node_id)
+        from_node_id = str(self._node.node_id) if self._node else "unknown"
+
+        # Try outbound connection first (we initiated)
+        client = self._peer_clients.get(to_node_id_str)
+        if client and client.is_connected():
+            try:
+                await client.send_message(
+                    to_node_id_str, message_type, payload, from_node_id=from_node_id
+                )
+                return
+            except Exception:
+                pass  # Fall through to try inbound connection
+
+        # Try inbound connection (they initiated)
+        writer = self._inbound_connections.get(to_node_id_str)
+        if writer:
+            try:
+                from .remote_client import serialize_message
+
+                msg = {
+                    "from": from_node_id,
+                    "type": message_type,
+                    "payload": payload,
+                }
+                serialized = serialize_message(msg)
+                length = len(serialized).to_bytes(4, byteorder="big")
+                writer.write(length + serialized)
+                await writer.drain()
+                return
+            except Exception:
+                pass
+
+        # Neither connection available
+        raise RuntimeError(
+            f"No connection to node {to_node_id_str}. "
+            f"Outbound: {to_node_id_str in self._peer_clients}, "
+            f"Inbound: {to_node_id_str in self._inbound_connections}"
+        )
+
+    async def receive_messages(self) -> AsyncIterator[Any]:
+        """
+        Receive messages from peer nodes.
+
+        Yields:
+            Messages in format: {"from": str, "type": str, "payload": Any}
+        """
+        while self._running:
+            try:
+                msg = await asyncio.wait_for(self._inbox.get(), timeout=0.1)
+                yield msg
+            except asyncio.TimeoutError:
+                if not self._running:
+                    break
+                continue
+            except asyncio.CancelledError:
+                break
+
+    async def shutdown(self) -> None:
+        """Shutdown the context, close all connections."""
+        if not self._running:
+            return
+
+        self._running = False
+
+        # Cancel monitor task
+        if self._monitor_task and not self._monitor_task.done():
+            self._monitor_task.cancel()
+            try:
+                await asyncio.wait_for(self._monitor_task, timeout=1.0)
+            except (asyncio.CancelledError, asyncio.TimeoutError):
+                pass
+
+        # Close local server
+        if self._local_server:
+            self._local_server.close()
+            await self._local_server.wait_closed()
+
+        if self._serve_task and not self._serve_task.done():
+            self._serve_task.cancel()
+            try:
+                await asyncio.wait_for(self._serve_task, timeout=1.0)
+            except (asyncio.CancelledError, asyncio.TimeoutError):
+                pass
+
+        # Close outbound connections
+        for client in self._peer_clients.values():
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
+
+        # Close inbound connections
+        for writer in list(self._inbound_connections.values()):
+            try:
+                writer.close()
+                await writer.wait_closed()
+            except Exception:
+                pass
+
+        self._peer_clients.clear()
+        self._inbound_connections.clear()
+        self._inbound_writers.clear()
+        self._node = None
+
+    def get_connected_peers(self) -> list:
+        """Get list of currently connected peer node IDs."""
+        connected = set()
+        for peer_id, client in self._peer_clients.items():
+            if client.is_connected():
+                connected.add(peer_id)
+        connected.update(self._inbound_connections.keys())
+        return list(connected)
+
+
+__all__ = [
+    "NodeContext",
+    "InProcessContext",
+    "ProcessContext",
+    "RemoteContext",
+    "MeshRemoteContext",
+]

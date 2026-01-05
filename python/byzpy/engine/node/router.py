@@ -165,6 +165,10 @@ class MessageRouter:
             message_type: Type of the message
             payload: Message payload
             context: NodeContext for sending (can be None if no neighbors)
+
+        Note:
+            This method is resilient to individual send failures - it will continue
+            sending to remaining neighbors even if some fail.
         """
         neighbors = self.get_out_neighbors()
 
@@ -175,7 +179,11 @@ class MessageRouter:
         unique_neighbors = list(dict.fromkeys(neighbors))  # Preserves order
 
         for neighbor_id in unique_neighbors:
-            await context.send_message(neighbor_id, message_type, payload)
+            try:
+                await context.send_message(neighbor_id, message_type, payload)
+            except Exception:
+                # Continue broadcasting to other neighbors even if one fails
+                pass
 
     async def route_multicast(
         self,

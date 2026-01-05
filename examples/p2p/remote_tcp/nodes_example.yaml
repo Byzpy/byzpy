@@ -1,0 +1,76 @@
+# Example configuration for fully distributed mesh P2P training
+#
+# Each node needs to know the addresses of all other nodes.
+# For local testing, use localhost with different ports.
+# For remote deployment, use actual IP addresses.
+
+# Training parameters
+training:
+  rounds: 50
+  batch_size: 64
+  learning_rate: 0.05
+
+# Node definitions
+# Each node needs:
+#   - id: Unique integer identifier
+#   - host: IP address or hostname (for other nodes to connect)
+#   - port: TCP port
+#   - type: "honest" or "byzantine"
+#   - bind_host: (optional) Address to bind server (default: "0.0.0.0")
+
+nodes:
+  # Honest nodes
+  - id: 0
+    host: localhost  # Use actual IP for remote: e.g., 192.168.1.100
+    port: 8880
+    type: honest
+    bind_host: "0.0.0.0"
+
+  - id: 1
+    host: localhost  # Use actual IP for remote: e.g., 192.168.1.101
+    port: 8881
+    type: honest
+    bind_host: "0.0.0.0"
+
+  - id: 2
+    host: localhost  # Use actual IP for remote: e.g., 192.168.1.102
+    port: 8882
+    type: honest
+    bind_host: "0.0.0.0"
+
+  - id: 3
+    host: localhost  # Use actual IP for remote: e.g., 192.168.1.103
+    port: 8883
+    type: honest
+    bind_host: "0.0.0.0"
+
+  # Byzantine node
+  - id: 4
+    host: localhost  # Use actual IP for remote: e.g., 192.168.1.104
+    port: 8884
+    type: byzantine
+    bind_host: "0.0.0.0"
+
+
+# Example for actual remote deployment:
+#
+# nodes:
+#   - id: 0
+#     host: 192.168.1.100
+#     port: 8888
+#     type: honest
+#
+#   - id: 1
+#     host: 192.168.1.101
+#     port: 8888
+#     type: honest
+#
+#   - id: 2
+#     host: 192.168.1.102
+#     port: 8888
+#     type: honest
+#
+#   - id: 3
+#     host: 192.168.1.103
+#     port: 8888
+#     type: byzantine
