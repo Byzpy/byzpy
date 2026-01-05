@@ -26,9 +26,7 @@ class NodeContext(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def send_message(
-        self, to_node_id: str, message_type: str, payload: Any
-    ) -> None:
+    async def send_message(self, to_node_id: str, message_type: str, payload: Any) -> None:
         """
         Send a message to another node.
 
@@ -77,9 +75,7 @@ class InProcessContext(NodeContext):
         self._running = True
         InProcessContext._registry[node.node_id] = self
 
-    async def send_message(
-        self, to_node_id: str, message_type: str, payload: Any
-    ) -> None:
+    async def send_message(self, to_node_id: str, message_type: str, payload: Any) -> None:
         """Send a message to another node."""
         if not self._running:
             raise RuntimeError("InProcessContext is not started.")
@@ -205,9 +201,7 @@ class ProcessContext(NodeContext):
         # Give process time to start - increased for slower environments like pytest
         await asyncio.sleep(0.3)
 
-    async def send_message(
-        self, to_node_id: str, message_type: str, payload: Any
-    ) -> None:
+    async def send_message(self, to_node_id: str, message_type: str, payload: Any) -> None:
         """Send a message to another node (across processes)."""
         import cloudpickle
 
@@ -521,9 +515,7 @@ class _SubprocessBridgeContext(NodeContext):
         self._running = True
         _SubprocessBridgeContext._subprocess_registry[self._node_id] = self
 
-    async def send_message(
-        self, to_node_id: str, message_type: str, payload: Any
-    ) -> None:
+    async def send_message(self, to_node_id: str, message_type: str, payload: Any) -> None:
         """Send message via parent process routing."""
         import cloudpickle
 
@@ -610,9 +602,7 @@ class RemoteContext(NodeContext):
         try:
             await self._client.connect(timeout=5.0)
         except (ConnectionError, OSError, asyncio.TimeoutError) as e:
-            raise ConnectionError(
-                f"Failed to connect to {self.host}:{self.port}"
-            ) from e
+            raise ConnectionError(f"Failed to connect to {self.host}:{self.port}") from e
 
         self._running = True
 
@@ -622,9 +612,7 @@ class RemoteContext(NodeContext):
 
         self._receive_task = asyncio.create_task(self._message_processing_loop())
 
-    async def send_message(
-        self, to_node_id: str, message_type: str, payload: Any
-    ) -> None:
+    async def send_message(self, to_node_id: str, message_type: str, payload: Any) -> None:
         """
         Send a message to a node on the remote server.
 
@@ -661,9 +649,7 @@ class RemoteContext(NodeContext):
 
         while self._running:
             try:
-                msg = await asyncio.wait_for(
-                    self._client.receive_message(timeout=0.1), timeout=0.1
-                )
+                msg = await asyncio.wait_for(self._client.receive_message(timeout=0.1), timeout=0.1)
                 if msg:
                     # Convert server message format to expected format
                     yield {

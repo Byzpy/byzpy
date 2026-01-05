@@ -99,9 +99,7 @@ class MinimumDiameterAveraging(Aggregator):
         if chunk_size <= 0:
             raise ValueError("chunk_size must be > 0")
         self.chunk_size = int(chunk_size)
-        self._active_handles: tuple[SharedTensorHandle, SharedTensorHandle] | None = (
-            None
-        )
+        self._active_handles: tuple[SharedTensorHandle, SharedTensorHandle] | None = None
         self.seed_prefix = 2
         self.seeds_per_task = 4
 
@@ -143,9 +141,7 @@ class MinimumDiameterAveraging(Aggregator):
                     best_mean = mean
 
         if best_mean is None or best_diam is None:
-            raise RuntimeError(
-                "MinimumDiameterAveraging failed to evaluate any subset."
-            )
+            raise RuntimeError("MinimumDiameterAveraging failed to evaluate any subset.")
         return _convert_result(mean=best_mean, like=like)
 
     def create_subtasks(self, inputs, *, context: Any):  # type: ignore[override]
@@ -243,9 +239,7 @@ class MinimumDiameterAveraging(Aggregator):
                     best_mean = mean
 
             if best_mean is None:
-                raise RuntimeError(
-                    "MinimumDiameterAveraging subtasks did not return a result."
-                )
+                raise RuntimeError("MinimumDiameterAveraging subtasks did not return a result.")
             return be.copy(be.asarray(best_mean))
         finally:
             handles = self._active_handles or ()
@@ -357,9 +351,7 @@ def _seeded_direct_search(
                 best_mean = mean
 
     if best_mean is None or best_diam is None:
-        raise RuntimeError(
-            "MinimumDiameterAveraging seeded search failed to find a subset."
-        )
+        raise RuntimeError("MinimumDiameterAveraging seeded search failed to find a subset.")
     return best_diam, best_mean
 
 
@@ -391,9 +383,7 @@ def _search_seed(
             yield from dfs(idx + 1, remain - 1, new_max, indices)
             indices.pop()
 
-    yield from dfs(
-        prefix[-1] + 1 if prefix else 0, remaining, current_max, list(prefix)
-    )
+    yield from dfs(prefix[-1] + 1 if prefix else 0, remaining, current_max, list(prefix))
 
 
 def _convert_result(*, mean: np.ndarray, like) -> Any:
@@ -442,9 +432,7 @@ def _is_shared_handle(obj: Any) -> bool:
     return False
 
 
-def _mda_eval_combo(
-    X: Any, D2: Any, combo: Iterable[int], be_name: str
-) -> tuple[float, Any]:
+def _mda_eval_combo(X: Any, D2: Any, combo: Iterable[int], be_name: str) -> tuple[float, Any]:
     be = get_backend()
     idx = _to_backend_indices(combo, like=X, be_name=be_name)
     sub = be.index_select(D2, axis=0, indices=idx)

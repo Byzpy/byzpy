@@ -105,9 +105,7 @@ def _format_speedup(direct: float, runtime: float) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Profile benchmarks for selected worker counts."
-    )
+    parser = argparse.ArgumentParser(description="Profile benchmarks for selected worker counts.")
     parser.add_argument(
         "--bench",
         action="append",
@@ -125,9 +123,7 @@ def main() -> None:
     worker_arg = ",".join(str(w) for w in selected_workers)
     rows = []
     for spec in SPECS:
-        if args.bench and not any(
-            term.lower() in spec.name.lower() for term in args.bench
-        ):
+        if args.bench and not any(term.lower() in spec.name.lower() for term in args.bench):
             continue
         cmd = spec.command_template
         if worker_arg:

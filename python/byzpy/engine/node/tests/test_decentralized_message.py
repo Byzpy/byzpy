@@ -4,6 +4,7 @@ import asyncio
 
 import pytest
 import torch
+
 from byzpy.engine.graph.graph import ComputationGraph, GraphInput, GraphNode
 from byzpy.engine.graph.operator import MessageTriggerOp
 from byzpy.engine.graph.pool import ActorPoolConfig

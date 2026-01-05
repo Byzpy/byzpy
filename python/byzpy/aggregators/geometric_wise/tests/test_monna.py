@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import torch
+
 from byzpy.aggregators.geometric_wise.monna import MoNNA
 from byzpy.engine.graph.operator import OpContext
 

@@ -1,17 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Awaitable,
-    Callable,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Mapping, Optional, Union
 
 from ..graph.scheduler import MessageAwareNodeScheduler
 from .application import NodeApplication
@@ -86,9 +76,7 @@ class DecentralizedNode:
         self._message_handlers: Dict[str, Callable[[str, Any], Awaitable[None]]] = {}
         self._running = False
         self._message_task: Optional[asyncio.Task] = None
-        self._autonomous_tasks: Dict[str, asyncio.Task] = (
-            {}
-        )  # Track autonomous background tasks
+        self._autonomous_tasks: Dict[str, asyncio.Task] = {}  # Track autonomous background tasks
 
         # Register default message handlers
         self._register_default_handlers()

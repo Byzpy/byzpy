@@ -43,9 +43,7 @@ class MoNNA(Aggregator):
     supports_subtasks = True
     max_subtasks_inflight = 0
 
-    def __init__(
-        self, f: int, *, reference_index: int = 0, chunk_size: int = 32
-    ) -> None:
+    def __init__(self, f: int, *, reference_index: int = 0, chunk_size: int = 32) -> None:
         if f < 0:
             raise ValueError("f must be >= 0")
         if reference_index < 0:

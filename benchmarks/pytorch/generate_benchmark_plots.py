@@ -55,9 +55,7 @@ async def _run_actor_pool_cases(
     return results
 
 
-async def _run_mda_case(
-    worker_count: int, *, chunk_size: int
-) -> tuple[float, float, float, float]:
+async def _run_mda_case(worker_count: int, *, chunk_size: int) -> tuple[float, float, float, float]:
     args = SimpleNamespace(
         num_grads=18,
         grad_dim=2048,
@@ -157,9 +155,7 @@ def _plot_bars(
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Generate benchmark plots.")
-    parser.add_argument(
-        "--output-dir", type=Path, default=REPO_ROOT / "benchmarks" / "plots"
-    )
+    parser.add_argument("--output-dir", type=Path, default=REPO_ROOT / "benchmarks" / "plots")
     args = parser.parse_args()
 
     actor_workers = [8]
@@ -167,9 +163,7 @@ async def main() -> None:
     mda_workers = [4]
     mda_results = [await _run_mda_case(count, chunk_size=512) for count in mda_workers]
     cwtm_workers = [4]
-    cwtm_results = [
-        await _run_cwtm_case(count, chunk_size=8192) for count in cwtm_workers
-    ]
+    cwtm_results = [await _run_cwtm_case(count, chunk_size=8192) for count in cwtm_workers]
     meamed_workers = [4]
     meamed_results = [
         await _run_meamed_case(count, chunk_size=8192, f=8) for count in meamed_workers

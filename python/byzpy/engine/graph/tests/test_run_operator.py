@@ -10,6 +10,7 @@ from typing import Any, Mapping, Sequence
 
 import pytest
 import torch
+
 from byzpy import run_operator
 from byzpy.aggregators.coordinate_wise.median import CoordinateWiseMedian
 from byzpy.aggregators.geometric_wise.krum import MultiKrum
@@ -108,18 +109,14 @@ class TestRunOperatorIntegration:
         # Test CoordinateWiseMedian
         operator1 = CoordinateWiseMedian()
         gradients = _make_gradients(64, 1000)
-        result1 = await run_operator(
-            operator=operator1, inputs={"gradients": gradients}
-        )
+        result1 = await run_operator(operator=operator1, inputs={"gradients": gradients})
         direct_result1 = operator1.aggregate(gradients)
         assert torch.allclose(result1, direct_result1, atol=1e-6)
 
         # Test MultiKrum
         operator2 = MultiKrum(f=10, q=5, chunk_size=10)
         gradients2 = _make_gradients(30, 1000)
-        result2 = await run_operator(
-            operator=operator2, inputs={"gradients": gradients2}
-        )
+        result2 = await run_operator(operator=operator2, inputs={"gradients": gradients2})
         # MultiKrum result should be a tensor
         assert isinstance(result2, torch.Tensor)
 
@@ -543,16 +540,12 @@ class TestRunOperatorEdgeCases:
         # Call with operator A
         operator1 = CoordinateWiseMedian()
         gradients1 = _make_gradients(64, 1000, seed=0)
-        result1 = await run_operator(
-            operator=operator1, inputs={"gradients": gradients1}
-        )
+        result1 = await run_operator(operator=operator1, inputs={"gradients": gradients1})
 
         # Call with operator B
         operator2 = MultiKrum(f=10, q=5, chunk_size=10)
         gradients2 = _make_gradients(30, 1000, seed=1)
-        result2 = await run_operator(
-            operator=operator2, inputs={"gradients": gradients2}
-        )
+        result2 = await run_operator(operator=operator2, inputs={"gradients": gradients2})
 
         # Both should succeed
         assert isinstance(result1, torch.Tensor)
@@ -560,9 +553,7 @@ class TestRunOperatorEdgeCases:
 
         # Verify no resource leaks by calling multiple times
         for _ in range(5):
-            result = await run_operator(
-                operator=operator1, inputs={"gradients": gradients1}
-            )
+            result = await run_operator(operator=operator1, inputs={"gradients": gradients1})
             assert isinstance(result, torch.Tensor)
 
 
@@ -628,24 +619,16 @@ class TestRunOperatorRealWorld:
         vectors = _make_vectors(256, 1000)
 
         for operator in operators:
-            if isinstance(operator, CoordinateWiseMedian) or isinstance(
-                operator, MultiKrum
-            ):
-                result = await run_operator(
-                    operator=operator, inputs={"gradients": gradients}
-                )
+            if isinstance(operator, CoordinateWiseMedian) or isinstance(operator, MultiKrum):
+                result = await run_operator(operator=operator, inputs={"gradients": gradients})
                 assert isinstance(result, torch.Tensor)
             elif isinstance(operator, Clipping):
-                result = await run_operator(
-                    operator=operator, inputs={"vectors": vectors}
-                )
+                result = await run_operator(operator=operator, inputs={"vectors": vectors})
                 assert isinstance(result, list)
 
         # Verify no resource leaks
         for _ in range(3):
-            result = await run_operator(
-                operator=operators[0], inputs={"gradients": gradients}
-            )
+            result = await run_operator(operator=operators[0], inputs={"gradients": gradients})
             assert isinstance(result, torch.Tensor)
 
     @pytest.mark.asyncio
@@ -654,9 +637,7 @@ class TestRunOperatorRealWorld:
         # Simulate ad-hoc usage: quick one-off calls with various operators
         operator1 = CoordinateWiseMedian()
         gradients1 = _make_gradients(64, 1000)
-        result1 = await run_operator(
-            operator=operator1, inputs={"gradients": gradients1}
-        )
+        result1 = await run_operator(operator=operator1, inputs={"gradients": gradients1})
         assert isinstance(result1, torch.Tensor)
 
         operator2 = Clipping(threshold=2.0)
@@ -666,9 +647,7 @@ class TestRunOperatorRealWorld:
 
         # Cleanup should happen automatically
         # Verify by making another call
-        result3 = await run_operator(
-            operator=operator1, inputs={"gradients": gradients1}
-        )
+        result3 = await run_operator(operator=operator1, inputs={"gradients": gradients1})
         assert isinstance(result3, torch.Tensor)
 
     @pytest.mark.asyncio

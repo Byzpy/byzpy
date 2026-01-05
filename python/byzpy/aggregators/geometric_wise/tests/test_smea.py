@@ -1,4 +1,5 @@
 import torch
+
 from byzpy.aggregators.geometric_wise import SMEA
 from byzpy.engine.graph.operator import OpContext
 

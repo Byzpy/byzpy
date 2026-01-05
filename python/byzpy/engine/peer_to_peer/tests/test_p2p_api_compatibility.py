@@ -10,6 +10,7 @@ import asyncio
 
 import pytest
 import torch
+
 from byzpy.aggregators.coordinate_wise import CoordinateWiseMedian
 from byzpy.engine.actor.backends.thread import ThreadActorBackend
 from byzpy.engine.graph.pool import ActorPoolConfig

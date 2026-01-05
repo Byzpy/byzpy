@@ -32,9 +32,7 @@ def _parse_readme_table(path: Path) -> List[Dict[str, float]]:
     # Find the table start.
     start_idx = None
     for i, line in enumerate(lines):
-        if line.startswith(
-            "| Workload | PyTorch / ActorPool Command | ByzFL Command |"
-        ):
+        if line.startswith("| Workload | PyTorch / ActorPool Command | ByzFL Command |"):
             start_idx = i + 2  # skip header separator
             break
     if start_idx is None:
@@ -103,9 +101,7 @@ def plot_all(df: pd.DataFrame, output: Optional[str]) -> None:
         vals = df[key].to_numpy(dtype=float)
         vals = np.where(vals <= 0, 1e-3, vals)  # avoid log-scale issues
         vals = np.nan_to_num(vals, nan=1e-3, posinf=1e-3, neginf=1e-3)
-        ax.bar(
-            x + offset, vals, width, label=_label(key), color=colors[key], alpha=0.85
-        )
+        ax.bar(x + offset, vals, width, label=_label(key), color=colors[key], alpha=0.85)
 
     ax.set_xticks(x)
     ax.set_xticklabels(df.index, rotation=60, ha="right")
@@ -173,9 +169,7 @@ def plot_per_workload(df: pd.DataFrame, output_dir: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Plot benchmark timings from README.md."
-    )
+    parser = argparse.ArgumentParser(description="Plot benchmark timings from README.md.")
     parser.add_argument(
         "--output",
         type=str,

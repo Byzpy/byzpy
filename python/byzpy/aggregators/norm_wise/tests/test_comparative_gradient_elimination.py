@@ -1,4 +1,5 @@
 import torch
+
 from byzpy.aggregators.norm_wise.comparative_gradient_elimination import (
     ComparativeGradientElimination,
 )

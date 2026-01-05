@@ -184,9 +184,7 @@ def _dominant_eigenpair(
     return eig, vec
 
 
-def _caf_chunk_fetch(
-    handle: SharedTensorHandle, start: int, end: int
-) -> tuple[int, np.ndarray]:
+def _caf_chunk_fetch(handle: SharedTensorHandle, start: int, end: int) -> tuple[int, np.ndarray]:
     with open_tensor(handle) as flat:
         chunk = np.array(flat[start:end], copy=True)
     return start, chunk

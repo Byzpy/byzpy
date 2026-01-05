@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Sequence
 
 import torch
+
 from byzpy import OperatorExecutor, run_operator
 from byzpy.engine.graph.pool import ActorPoolConfig
 from byzpy.pre_aggregators.bucketing import Bucketing
@@ -51,14 +52,10 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Benchmark Bucketing pre-aggregation using simplified API."
     )
-    parser.add_argument(
-        "--num-vectors", type=int, default=512, help="Number of vectors."
-    )
+    parser.add_argument("--num-vectors", type=int, default=512, help="Number of vectors.")
     parser.add_argument("--dim", type=int, default=16384, help="Vector dimension.")
     parser.add_argument("--bucket-size", type=int, default=32, help="Bucket size.")
-    parser.add_argument(
-        "--feature-chunk", type=int, default=8192, help="Features per subtask."
-    )
+    parser.add_argument("--feature-chunk", type=int, default=8192, help="Features per subtask.")
     default_workers = ",".join(str(count) for count in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
         "--pool-workers",
@@ -66,15 +63,9 @@ def _parse_args() -> argparse.Namespace:
         default=default_workers,
         help=f"Comma/space separated worker counts for ActorPool runs (default: {default_workers}).",
     )
-    parser.add_argument(
-        "--pool-backend", type=str, default="process", help="Actor backend."
-    )
-    parser.add_argument(
-        "--warmup", type=int, default=1, help="Warm-up iterations per mode."
-    )
-    parser.add_argument(
-        "--repeat", type=int, default=3, help="Timed iterations per mode."
-    )
+    parser.add_argument("--pool-backend", type=str, default="process", help="Actor backend.")
+    parser.add_argument("--warmup", type=int, default=1, help="Warm-up iterations per mode.")
+    parser.add_argument("--repeat", type=int, default=3, help="Timed iterations per mode.")
     parser.add_argument("--seed", type=int, default=0, help="PRNG seed.")
     args = parser.parse_args()
     args.pool_workers = parse_worker_counts(args.pool_workers)
@@ -109,9 +100,7 @@ async def _time_run_operator(
     """Time run_operator() for single-threaded case (no pool overhead)."""
 
     async def _run_once():
-        await run_operator(
-            operator=operator, inputs={"vectors": vecs}, pool_config=pool_config
-        )
+        await run_operator(operator=operator, inputs={"vectors": vecs}, pool_config=pool_config)
 
     for _ in range(warmup):
         await _run_once()
@@ -144,9 +133,7 @@ async def _time_executor(
 
 
 async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
-    worker_counts = coerce_worker_counts(
-        getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS)
-    )
+    worker_counts = coerce_worker_counts(getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS))
     vecs = _make_vectors(args.num_vectors, args.dim, args.seed)
 
     agg = Bucketing(

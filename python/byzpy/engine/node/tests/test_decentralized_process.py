@@ -10,6 +10,7 @@ import asyncio
 
 import pytest
 import torch
+
 from byzpy.engine.graph.graph import ComputationGraph, GraphNode, graph_input
 from byzpy.engine.graph.operator import Operator
 from byzpy.engine.graph.pool import ActorPoolConfig
@@ -101,9 +102,7 @@ async def test_multi_process_p2p_gradient_exchange():
     for node_id, node in cluster.nodes.items():
         assert node._running, f"Node {node_id} should be running"
         assert isinstance(node.context, ProcessContext)
-        assert (
-            node.context._process.is_alive()
-        ), f"Process for {node_id} should be alive"
+        assert node.context._process.is_alive(), f"Process for {node_id} should be alive"
 
     # Each node sends its "local gradient" to next node in ring
     for i, (node_id, node) in enumerate(cluster.nodes.items()):
@@ -120,9 +119,7 @@ async def test_multi_process_p2p_gradient_exchange():
     # Verify nodes are still running after message exchange
     for node_id, node in cluster.nodes.items():
         assert node._running, f"Node {node_id} should still be running"
-        assert (
-            node.context._process.is_alive()
-        ), f"Process for {node_id} should still be alive"
+        assert node.context._process.is_alive(), f"Process for {node_id} should still be alive"
 
     await cluster.shutdown_all()
 
@@ -209,9 +206,7 @@ async def test_multi_process_p2p_training_round():
 
     # Verify all nodes updated their parameters
     for node_id, state in node_states.items():
-        assert (
-            state["updated_params"] is not None
-        ), f"{node_id} should have updated params"
+        assert state["updated_params"] is not None, f"{node_id} should have updated params"
         assert not torch.equal(
             state["updated_params"], initial_params
         ), f"{node_id} params should have changed"
@@ -332,13 +327,9 @@ async def test_multi_process_aggregation_pipeline():
     await asyncio.sleep(0.5)
 
     # Aggregator aggregates
-    assert (
-        len(collected_grads) == 2
-    ), f"Should have 2 gradients, got {len(collected_grads)}"
+    assert len(collected_grads) == 2, f"Should have 2 gradients, got {len(collected_grads)}"
 
-    result = await aggregator.execute_pipeline(
-        "aggregate", {"gradients": collected_grads}
-    )
+    result = await aggregator.execute_pipeline("aggregate", {"gradients": collected_grads})
 
     expected = (grad1 + grad2) / 2
     assert torch.allclose(
@@ -443,9 +434,7 @@ async def test_process_based_training_with_model_update():
             grad = local_gradients[src_id]
             for j, (dst_id, _) in enumerate(cluster.nodes.items()):
                 if i != j:
-                    await src_node.send_message(
-                        dst_id, "gradient", {"gradient": grad.tolist()}
-                    )
+                    await src_node.send_message(dst_id, "gradient", {"gradient": grad.tolist()})
 
         # Wait for exchange
         await asyncio.sleep(0.5)

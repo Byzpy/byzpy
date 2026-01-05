@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 import torch
+
 from byzpy.engine.peer_to_peer.runner import DecentralizedPeerToPeer
 from byzpy.engine.peer_to_peer.topology import Topology
 

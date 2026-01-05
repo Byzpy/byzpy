@@ -53,9 +53,7 @@ def graph_input(name: str) -> GraphInput:
 class GraphNode:
     name: str
     op: Operator
-    inputs: Mapping[str, Union[str, GraphInput, "MessageSource"]] = field(
-        default_factory=dict
-    )
+    inputs: Mapping[str, Union[str, GraphInput, "MessageSource"]] = field(default_factory=dict)
 
 
 class ComputationGraph:
@@ -100,9 +98,7 @@ class ComputationGraph:
                     # MessageSource - not a required input (comes from messages)
                     pass
                 elif dep not in node_names:
-                    raise ValueError(
-                        f"Node {node.name} depends on unknown node {dep!r}"
-                    )
+                    raise ValueError(f"Node {node.name} depends on unknown node {dep!r}")
         return req
 
     def _topological_order(self, nodes: Sequence[GraphNode]) -> List[str]:
@@ -128,9 +124,7 @@ class ComputationGraph:
                         ready.append(child.name)
 
         if len(order) != len(nodes):
-            raise ValueError(
-                "ComputationGraph contains a cycle; cannot determine order."
-            )
+            raise ValueError("ComputationGraph contains a cycle; cannot determine order.")
         return order
 
 

@@ -1,4 +1,5 @@
 import torch
+
 from byzpy.engine.graph.operator import OpContext
 from byzpy.pre_aggregators import ARC
 

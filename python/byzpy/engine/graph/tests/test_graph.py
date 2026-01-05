@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+
 from byzpy.engine.graph.graph import ComputationGraph, GraphNode, graph_input
 from byzpy.engine.graph.operator import Operator
 

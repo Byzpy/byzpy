@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+
 from byzpy.engine.graph.graph import ComputationGraph, GraphNode, graph_input
 from byzpy.engine.graph.operator import Operator
 from byzpy.engine.graph.scheduler import MessageAwareNodeScheduler, NodeScheduler
@@ -96,9 +97,7 @@ async def test_messageawarenodescheduler_deliver_message_wakes_multiple_waiters(
     scheduler = create_message_aware_scheduler()
 
     # Create multiple waiters
-    waiters = [
-        asyncio.create_task(scheduler.wait_for_message("test_msg")) for _ in range(5)
-    ]
+    waiters = [asyncio.create_task(scheduler.wait_for_message("test_msg")) for _ in range(5)]
 
     await asyncio.sleep(0.01)  # Let them start waiting
 
@@ -235,9 +234,7 @@ async def test_graph_with_message_dependent_nodes():
 
     # Node 2: depends on node1
     add_op = _AddOp()
-    node2 = GraphNode(
-        name="sum", op=add_op, inputs={"a": "double", "b": graph_input("bias")}
-    )
+    node2 = GraphNode(name="sum", op=add_op, inputs={"a": "double", "b": graph_input("bias")})
 
     graph = ComputationGraph(nodes=[node1, node2], outputs=["sum"])
     scheduler = MessageAwareNodeScheduler(graph)
@@ -258,9 +255,7 @@ async def test_messageawarenodescheduler_concurrent_deliveries():
     scheduler = create_message_aware_scheduler()
 
     # Create multiple waiters
-    waiters = [
-        asyncio.create_task(scheduler.wait_for_message(f"msg_{i}")) for i in range(10)
-    ]
+    waiters = [asyncio.create_task(scheduler.wait_for_message(f"msg_{i}")) for i in range(10)]
 
     await asyncio.sleep(0.01)
 

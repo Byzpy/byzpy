@@ -95,9 +95,7 @@ class ComparativeGradientElimination(Aggregator):
         features = flat.shape[1]
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
-        chunk = select_adaptive_chunk_size(
-            features, self.chunk_size, pool_size=pool_size
-        )
+        chunk = select_adaptive_chunk_size(features, self.chunk_size, pool_size=pool_size)
 
         def _iter() -> Iterable[SubTask]:
             chunk_id = 0
@@ -118,9 +116,7 @@ class ComparativeGradientElimination(Aggregator):
             return super().compute(inputs, context=context)
 
         if self._active_handle is None or self._flat_shape is None or self._n is None:
-            raise RuntimeError(
-                "ComparativeGradientElimination missing state for reduction."
-            )
+            raise RuntimeError("ComparativeGradientElimination missing state for reduction.")
 
         n = self._n
         totals = np.zeros(n, dtype=np.float64)

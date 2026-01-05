@@ -4,6 +4,7 @@ import asyncio
 
 import pytest
 import torch
+
 from byzpy.engine.graph.pool import ActorPoolConfig
 from byzpy.engine.node.application import NodeApplication
 from byzpy.engine.node.context import NodeContext, ProcessContext

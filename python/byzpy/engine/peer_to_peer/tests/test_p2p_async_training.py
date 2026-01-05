@@ -11,6 +11,7 @@ import asyncio
 
 import pytest
 import torch
+
 from byzpy.aggregators.coordinate_wise import CoordinateWiseMedian
 from byzpy.engine.graph.graph import ComputationGraph, GraphInput, GraphNode
 from byzpy.engine.graph.ops import CallableOp, make_single_operator_graph
@@ -240,9 +241,7 @@ async def test_p2p_training_fully_asynchronous_ring():
 
             return on_gradient
 
-        node.register_message_handler(
-            "gradient", make_training_handler(f"node{i}", node)
-        )
+        node.register_message_handler("gradient", make_training_handler(f"node{i}", node))
 
     cluster._update_node_id_maps()
     await cluster.start_all()

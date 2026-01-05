@@ -6,18 +6,13 @@ from typing import Sequence
 
 import pytest
 import torch
+
 from byzpy.aggregators.base import Aggregator
 from byzpy.attacks.empire import EmpireAttack
 from byzpy.engine.graph.graph import ComputationGraph, GraphNode, graph_input
 from byzpy.engine.graph.pool import ActorPoolConfig
-from byzpy.engine.node.application import (
-    ByzantineNodeApplication,
-    HonestNodeApplication,
-)
-from byzpy.engine.node.distributed import (
-    DistributedByzantineNode,
-    DistributedHonestNode,
-)
+from byzpy.engine.node.application import ByzantineNodeApplication, HonestNodeApplication
+from byzpy.engine.node.distributed import DistributedByzantineNode, DistributedHonestNode
 
 EXECUTION_RECORD: list[int] = []
 
@@ -30,6 +25,7 @@ class _SumAggregator(Aggregator):
             raise ValueError("No gradients supplied.")
         # Handle SharedTensorHandle objects if present
         import numpy as np
+
         from byzpy.engine.storage.shared_store import SharedTensorHandle, open_tensor
 
         # Convert first gradient to tensor to get shape/device
@@ -39,9 +35,7 @@ class _SumAggregator(Aggregator):
                 first_tensor = torch.from_numpy(np.array(arr, copy=True))
         else:
             first_tensor = (
-                first_grad
-                if isinstance(first_grad, torch.Tensor)
-                else torch.tensor(first_grad)
+                first_grad if isinstance(first_grad, torch.Tensor) else torch.tensor(first_grad)
             )
 
         total = torch.zeros_like(first_tensor)
@@ -50,9 +44,7 @@ class _SumAggregator(Aggregator):
                 with open_tensor(grad) as arr:
                     grad_tensor = torch.from_numpy(np.array(arr, copy=True))
             else:
-                grad_tensor = (
-                    grad if isinstance(grad, torch.Tensor) else torch.tensor(grad)
-                )
+                grad_tensor = grad if isinstance(grad, torch.Tensor) else torch.tensor(grad)
             total = total + grad_tensor.to(total.device)
         return total
 

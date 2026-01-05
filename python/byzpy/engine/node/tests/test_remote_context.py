@@ -3,6 +3,7 @@
 import asyncio
 
 import pytest
+
 from byzpy.engine.graph.pool import ActorPoolConfig
 from byzpy.engine.node.application import NodeApplication
 from byzpy.engine.node.context import InProcessContext, RemoteContext
@@ -256,9 +257,7 @@ async def test_remotecontext_send_large_payload(make_app):
 
     # Send large numpy array
     large_array = np.random.rand(1000, 1000).astype(np.float32)
-    await client_context.send_message(
-        "server_node", "large_data", {"array": large_array}
-    )
+    await client_context.send_message("server_node", "large_data", {"array": large_array})
     await asyncio.sleep(0.5)
 
     assert received_payload is not None

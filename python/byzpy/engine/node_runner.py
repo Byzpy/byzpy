@@ -30,9 +30,7 @@ class _Command:
     payload: Any = None
 
 
-def _runner_main(
-    cmd_q: mp.Queue, inbox_q: mp.Queue, result_q: mp.Queue, blob: bytes
-) -> None:
+def _runner_main(cmd_q: mp.Queue, inbox_q: mp.Queue, result_q: mp.Queue, blob: bytes) -> None:
     step_fn, msg_handler, init_state = cloudpickle.loads(blob)
     state = init_state if init_state is not None else {}
     auto = False

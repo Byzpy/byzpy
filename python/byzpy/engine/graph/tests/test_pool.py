@@ -9,6 +9,7 @@ from typing import Tuple
 import pytest
 import pytest_asyncio
 import torch
+
 from byzpy.engine.actor.backends.gpu import (
     GPUActorBackend,
     UCXRemoteActorBackend,
@@ -127,9 +128,7 @@ async def _wait_until_listening_tcp(host: str, port: int, timeout: float = 3.0) 
         except Exception as err:
             last_err = err
             if asyncio.get_event_loop().time() >= deadline:
-                raise TimeoutError(
-                    f"TCP server {host}:{port} did not start: {last_err!r}"
-                )
+                raise TimeoutError(f"TCP server {host}:{port} did not start: {last_err!r}")
             await asyncio.sleep(0.05)
 
 
@@ -159,9 +158,7 @@ async def _wait_until_listening_ucx(host: str, port: int, timeout: float = 5.0) 
         except Exception as err:
             last_err = err
             if asyncio.get_event_loop().time() >= deadline:
-                raise TimeoutError(
-                    f"UCX server {host}:{port} did not start: {last_err!r}"
-                )
+                raise TimeoutError(f"UCX server {host}:{port} did not start: {last_err!r}")
             await asyncio.sleep(0.05)
 
 
@@ -273,9 +270,7 @@ async def ucx_server_addr():
 
 
 def test_actor_pool_config_with_explicit_capabilities():
-    cfg = ActorPoolConfig(
-        backend="thread", count=2, capabilities=("gpu",), name="trainer"
-    )
+    cfg = ActorPoolConfig(backend="thread", count=2, capabilities=("gpu",), name="trainer")
     assert cfg.resolved_capabilities() == ("gpu",)
 
 
@@ -368,9 +363,7 @@ async def test_actor_pool_run_many_handles_empty_subtask_list():
 
 @pytest.mark.asyncio
 async def test_actor_pool_acquire_requires_matching_affinity():
-    pool = ActorPool(
-        [ActorPoolConfig(backend="thread", count=1, capabilities=("cpu",))]
-    )
+    pool = ActorPool([ActorPoolConfig(backend="thread", count=1, capabilities=("cpu",))])
     await pool.start()
 
     with pytest.raises(RuntimeError, match="No actor in the pool"):

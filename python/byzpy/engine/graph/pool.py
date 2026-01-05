@@ -116,20 +116,14 @@ class ActorPool:
         self.configs = list(configs)
         self._workers: List[_PoolWorker] = []
         self._available: asyncio.Queue[_PoolWorker] = asyncio.Queue()
-        self._waiting: Dict[str | None, Deque[asyncio.Future[_PoolWorker]]] = (
-            defaultdict(deque)
-        )
+        self._waiting: Dict[str | None, Deque[asyncio.Future[_PoolWorker]]] = defaultdict(deque)
         self._started = False
         self._channel_cache: Dict[str, ActorPoolChannel] = {}
         self._worker_affinity_caps: List[str] = []
 
     @property
     def size(self) -> int:
-        return (
-            len(self._workers)
-            if self._started
-            else sum(cfg.count for cfg in self.configs)
-        )
+        return len(self._workers) if self._started else sum(cfg.count for cfg in self.configs)
 
     async def start(self) -> None:
         if self._started:
@@ -284,9 +278,7 @@ class _PoolWorker:
     A single actor worker in a pool
     """
 
-    def __init__(
-        self, *, backend: ActorBackend, capabilities: set[str], name: str
-    ) -> None:
+    def __init__(self, *, backend: ActorBackend, capabilities: set[str], name: str) -> None:
         self.backend = backend
         self.capabilities = frozenset(capabilities)
         self.name = name
@@ -334,9 +326,7 @@ class _PoolWorker:
 
 
 class _SubTaskWorker:
-    def execute(
-        self, payload: bytes, args: tuple[Any, ...], kwargs: Mapping[str, Any]
-    ) -> Any:
+    def execute(self, payload: bytes, args: tuple[Any, ...], kwargs: Mapping[str, Any]) -> Any:
         fn = cloudpickle.loads(payload)
         return fn(*args, **dict(kwargs))
 

@@ -4,6 +4,7 @@ import asyncio
 
 import pytest
 import torch
+
 from byzpy.engine.graph.pool import ActorPoolConfig
 from byzpy.engine.node.application import NodeApplication
 from byzpy.engine.node.cluster import DecentralizedCluster
@@ -195,9 +196,7 @@ async def test_decentralizedcluster_remote_node_communication(make_app):
     # Add remote node
     remote_app = make_app("remote")
     remote_context = RemoteContext(host="localhost", port=port)
-    remote_node = await cluster.add_node(
-        "remote_node", remote_app, context=remote_context
-    )
+    remote_node = await cluster.add_node("remote_node", remote_app, context=remote_context)
     cluster._node_id_map[1] = "remote_node"
 
     # Start local node manually (it's already registered with server)
@@ -247,9 +246,7 @@ async def test_distributed_p2p_training_remote_nodes(make_app):
     for i in range(2):
         app = make_app(f"app-{i}")
         context = RemoteContext(host="localhost", port=port)
-        node = await cluster.add_node(
-            f"node{i}", app, topology=topology, context=context
-        )
+        node = await cluster.add_node(f"node{i}", app, topology=topology, context=context)
         cluster._node_id_map[i] = f"node{i}"
 
         def make_handler(nid):

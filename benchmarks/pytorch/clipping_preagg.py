@@ -9,17 +9,14 @@ from dataclasses import dataclass
 from typing import Sequence
 
 import torch
+
 from byzpy.engine.graph.ops import make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
 from byzpy.pre_aggregators.clipping import Clipping
 
 try:
-    from ._worker_args import (
-        DEFAULT_WORKER_COUNTS,
-        coerce_worker_counts,
-        parse_worker_counts,
-    )
+    from ._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
 except ImportError:
     from _worker_args import DEFAULT_WORKER_COUNTS  # type: ignore
     from _worker_args import coerce_worker_counts, parse_worker_counts
@@ -36,19 +33,11 @@ class BenchmarkRun:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Benchmark static clipping pre-aggregation."
-    )
-    parser.add_argument(
-        "--num-vectors", type=int, default=256, help="Number of vectors."
-    )
+    parser = argparse.ArgumentParser(description="Benchmark static clipping pre-aggregation.")
+    parser.add_argument("--num-vectors", type=int, default=256, help="Number of vectors.")
     parser.add_argument("--dim", type=int, default=65536, help="Vector dimension.")
-    parser.add_argument(
-        "--threshold", type=float, default=2.0, help="Clipping threshold."
-    )
-    parser.add_argument(
-        "--chunk-size", type=int, default=32, help="Vectors processed per subtask."
-    )
+    parser.add_argument("--threshold", type=float, default=2.0, help="Clipping threshold.")
+    parser.add_argument("--chunk-size", type=int, default=32, help="Vectors processed per subtask.")
     default_workers = ",".join(str(w) for w in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
         "--pool-workers",
@@ -56,15 +45,9 @@ def _parse_args() -> argparse.Namespace:
         default=default_workers,
         help=f"Comma/space separated worker counts (default: {default_workers}).",
     )
-    parser.add_argument(
-        "--pool-backend", type=str, default="process", help="Actor backend."
-    )
-    parser.add_argument(
-        "--warmup", type=int, default=1, help="Warm-up iterations per mode."
-    )
-    parser.add_argument(
-        "--repeat", type=int, default=3, help="Timed iterations per mode."
-    )
+    parser.add_argument("--pool-backend", type=str, default="process", help="Actor backend.")
+    parser.add_argument("--warmup", type=int, default=1, help="Warm-up iterations per mode.")
+    parser.add_argument("--repeat", type=int, default=3, help="Timed iterations per mode.")
     parser.add_argument("--seed", type=int, default=0, help="Random seed.")
     args = parser.parse_args()
     args.pool_workers = parse_worker_counts(args.pool_workers)
@@ -108,9 +91,7 @@ async def _time_scheduler(
 
 
 async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
-    worker_counts = coerce_worker_counts(
-        getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS)
-    )
+    worker_counts = coerce_worker_counts(getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS))
     vecs = _make_vectors(args.num_vectors, args.dim, args.seed)
 
     pre = Clipping(threshold=args.threshold, chunk_size=args.chunk_size)
@@ -147,9 +128,7 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
             )
         finally:
             await pool.shutdown()
-        runs.append(
-            BenchmarkRun(f"ActorPool x{workers} ({args.pool_backend})", pool_time)
-        )
+        runs.append(BenchmarkRun(f"ActorPool x{workers} ({args.pool_backend})", pool_time))
 
     return runs
 

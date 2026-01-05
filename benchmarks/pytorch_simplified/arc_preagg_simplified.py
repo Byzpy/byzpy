@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Sequence
 
 import torch
+
 from byzpy import OperatorExecutor, run_operator
 from byzpy.engine.graph.pool import ActorPoolConfig
 from byzpy.pre_aggregators.arc import ARC
@@ -49,16 +50,12 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Benchmark Adaptive Robust Clipping (ARC) pre-aggregation using simplified API."
     )
-    parser.add_argument(
-        "--num-vectors", type=int, default=256, help="Number of vectors."
-    )
+    parser.add_argument("--num-vectors", type=int, default=256, help="Number of vectors.")
     parser.add_argument("--dim", type=int, default=65536, help="Vector dimension.")
     parser.add_argument(
         "--f", type=int, default=8, help="Expected Byzantine count (controls clipping)."
     )
-    parser.add_argument(
-        "--chunk-size", type=int, default=32, help="Vectors processed per subtask."
-    )
+    parser.add_argument("--chunk-size", type=int, default=32, help="Vectors processed per subtask.")
     default_workers = ",".join(str(w) for w in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
         "--pool-workers",
@@ -66,15 +63,9 @@ def _parse_args() -> argparse.Namespace:
         default=default_workers,
         help=f"Comma/space separated worker counts (default: {default_workers}).",
     )
-    parser.add_argument(
-        "--pool-backend", type=str, default="process", help="Actor backend."
-    )
-    parser.add_argument(
-        "--warmup", type=int, default=1, help="Warm-up iterations per mode."
-    )
-    parser.add_argument(
-        "--repeat", type=int, default=3, help="Timed iterations per mode."
-    )
+    parser.add_argument("--pool-backend", type=str, default="process", help="Actor backend.")
+    parser.add_argument("--warmup", type=int, default=1, help="Warm-up iterations per mode.")
+    parser.add_argument("--repeat", type=int, default=3, help="Timed iterations per mode.")
     parser.add_argument("--seed", type=int, default=0, help="Random seed.")
     args = parser.parse_args()
     args.pool_workers = parse_worker_counts(args.pool_workers)
@@ -87,9 +78,7 @@ def _make_vectors(n: int, dim: int, seed: int) -> list[torch.Tensor]:
     return [torch.randn(dim, generator=gen) for _ in range(n)]
 
 
-def _time_direct(
-    pre: ARC, vecs: Sequence[torch.Tensor], *, iterations: int, warmup: int
-) -> float:
+def _time_direct(pre: ARC, vecs: Sequence[torch.Tensor], *, iterations: int, warmup: int) -> float:
     for _ in range(warmup):
         pre.pre_aggregate(vecs)
     start = time.perf_counter()
@@ -109,9 +98,7 @@ async def _time_run_operator(
     """Time run_operator() for single-threaded case (no pool overhead)."""
 
     async def _run_once():
-        await run_operator(
-            operator=operator, inputs={"vectors": vecs}, pool_config=pool_config
-        )
+        await run_operator(operator=operator, inputs={"vectors": vecs}, pool_config=pool_config)
 
     for _ in range(warmup):
         await _run_once()
@@ -144,9 +131,7 @@ async def _time_executor(
 
 
 async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
-    worker_counts = coerce_worker_counts(
-        getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS)
-    )
+    worker_counts = coerce_worker_counts(getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS))
     vecs = _make_vectors(args.num_vectors, args.dim, args.seed)
 
     pre = ARC(f=args.f, chunk_size=args.chunk_size)
@@ -174,9 +159,7 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
             iterations=args.repeat,
             warmup=args.warmup,
         )
-        runs.append(
-            BenchmarkRun(f"ActorPool x{workers} ({args.pool_backend})", pool_time)
-        )
+        runs.append(BenchmarkRun(f"ActorPool x{workers} ({args.pool_backend})", pool_time))
 
     return runs
 

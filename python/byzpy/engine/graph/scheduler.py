@@ -60,18 +60,14 @@ class NodeScheduler:
             metadata = dict(self.metadata)
             if self.pool is not None:
                 metadata.setdefault("pool_size", self.pool.size)
-                metadata.setdefault(
-                    "worker_affinities", tuple(self.pool.worker_affinities())
-                )
+                metadata.setdefault("worker_affinities", tuple(self.pool.worker_affinities()))
             ctx = OpContext(node_name=node.name, metadata=metadata)
             result = await node.op.run(node_inputs, context=ctx, pool=self.pool)
             cache[node.name] = result
 
         return {name: cache[name] for name in self.graph.outputs}
 
-    def _resolve_inputs(
-        self, node: GraphNode, cache: MutableMapping[str, Any]
-    ) -> Dict[str, Any]:
+    def _resolve_inputs(self, node: GraphNode, cache: MutableMapping[str, Any]) -> Dict[str, Any]:
         resolved: Dict[str, Any] = {}
         for arg, dep in node.inputs.items():
             if isinstance(dep, GraphInput):
@@ -204,9 +200,7 @@ class MessageAwareNodeScheduler(NodeScheduler):
         for key, value in inputs.items():
             if isinstance(value, MessageSource):
                 # Wait for message
-                msg = await self.wait_for_message(
-                    value.message_type, timeout=value.timeout
-                )
+                msg = await self.wait_for_message(value.message_type, timeout=value.timeout)
                 if value.field:
                     if isinstance(msg, dict):
                         if value.field not in msg:
@@ -224,9 +218,7 @@ class MessageAwareNodeScheduler(NodeScheduler):
                 resolved_inputs[key] = value
 
         # Now resolve message sources in graph node inputs
-        missing = [
-            name for name in self.graph.required_inputs if name not in resolved_inputs
-        ]
+        missing = [name for name in self.graph.required_inputs if name not in resolved_inputs]
         if missing:
             raise ValueError(f"Missing graph inputs: {missing}")
 
@@ -237,9 +229,7 @@ class MessageAwareNodeScheduler(NodeScheduler):
             metadata = dict(self.metadata)
             if self.pool is not None:
                 metadata.setdefault("pool_size", self.pool.size)
-                metadata.setdefault(
-                    "worker_affinities", tuple(self.pool.worker_affinities())
-                )
+                metadata.setdefault("worker_affinities", tuple(self.pool.worker_affinities()))
             # Add scheduler to metadata for MessageTriggerOp
             metadata["scheduler"] = self
             ctx = OpContext(node_name=node.name, metadata=metadata)
@@ -265,9 +255,7 @@ class MessageAwareNodeScheduler(NodeScheduler):
                             )
                         resolved[arg] = msg[dep.field]
                     else:
-                        raise TypeError(
-                            f"Cannot extract field '{dep.field}' from non-dict message"
-                        )
+                        raise TypeError(f"Cannot extract field '{dep.field}' from non-dict message")
                 else:
                     resolved[arg] = msg
             elif isinstance(dep, GraphInput):

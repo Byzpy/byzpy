@@ -6,14 +6,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data as data
+from torchvision import datasets, transforms
+
 from byzpy.aggregators.coordinate_wise import CoordinateWiseMedian
 from byzpy.attacks import EmpireAttack
 from byzpy.engine.graph.pool import ActorPoolConfig
-from byzpy.engine.node.distributed import (
-    DistributedByzantineNode,
-    DistributedHonestNode,
-)
-from torchvision import datasets, transforms
+from byzpy.engine.node.distributed import DistributedByzantineNode, DistributedHonestNode
 
 
 def _flatten_grads(model: nn.Module) -> torch.Tensor:
@@ -101,9 +99,7 @@ class DistributedPSHonestNode(DistributedHonestNode):
         self._it = iter(self.loader)
 
         self.model = model_cls().to(dev)
-        self.optimizer = torch.optim.SGD(
-            self.model.parameters(), lr=lr, momentum=momentum
-        )
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr, momentum=momentum)
         self.criterion = nn.CrossEntropyLoss()
         self.device = dev
 
@@ -115,9 +111,7 @@ class DistributedPSHonestNode(DistributedHonestNode):
             x, y = next(self._it)
         return x.to(self.device), y.to(self.device)
 
-    def local_honest_gradient(
-        self, *, x: torch.Tensor, y: torch.Tensor
-    ) -> torch.Tensor:
+    def local_honest_gradient(self, *, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         x = x.to(self.device)
         y = y.to(self.device)
         self.model.zero_grad(set_to_none=True)

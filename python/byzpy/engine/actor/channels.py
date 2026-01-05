@@ -49,9 +49,7 @@ class ChannelRef:
         )
 
     async def recv(self, *, timeout: Optional[float] = None) -> Any:
-        raw = await self._backend.chan_get(
-            ep=self._local, name=self._name, timeout=timeout
-        )
+        raw = await self._backend.chan_get(ep=self._local, name=self._name, timeout=timeout)
         return _unwrap_ipc(raw)
 
 

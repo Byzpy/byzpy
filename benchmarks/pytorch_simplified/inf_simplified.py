@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Sequence
 
 import torch
+
 from byzpy import OperatorExecutor, run_operator
 from byzpy.attacks.inf import InfAttack
 from byzpy.engine.graph.pool import ActorPoolConfig
@@ -48,16 +49,10 @@ class BenchmarkRun:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Benchmark Inf attack using simplified API."
-    )
+    parser = argparse.ArgumentParser(description="Benchmark Inf attack using simplified API.")
     parser.add_argument("--num-grads", type=int, default=64, help="Honest gradients")
-    parser.add_argument(
-        "--grad-dim", type=int, default=65536, help="Gradient dimension"
-    )
-    parser.add_argument(
-        "--chunk-size", type=int, default=16384, help="Features per subtask"
-    )
+    parser.add_argument("--grad-dim", type=int, default=65536, help="Gradient dimension")
+    parser.add_argument("--chunk-size", type=int, default=16384, help="Features per subtask")
     default_workers = ",".join(str(count) for count in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
         "--pool-workers",
@@ -127,9 +122,7 @@ async def _time_executor(
     warmup: int,
 ) -> float:
     """Time OperatorExecutor with pool (reuses pool across iterations)."""
-    executor = OperatorExecutor(
-        operator, pool_config=pool_config, input_keys=("honest_grads",)
-    )
+    executor = OperatorExecutor(operator, pool_config=pool_config, input_keys=("honest_grads",))
     async with executor:
 
         for _ in range(warmup):
@@ -142,9 +135,7 @@ async def _time_executor(
 
 
 async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
-    worker_counts = coerce_worker_counts(
-        getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS)
-    )
+    worker_counts = coerce_worker_counts(getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS))
     grads = _make_grads(args.num_grads, args.grad_dim, args.seed)
     attack = InfAttack(chunk_size=args.chunk_size)
 

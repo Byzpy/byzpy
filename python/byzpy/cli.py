@@ -126,9 +126,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    version_parser = subparsers.add_parser(
-        "version", help="Print the installed ByzPy version."
-    )
+    version_parser = subparsers.add_parser("version", help="Print the installed ByzPy version.")
     version_parser.set_defaults(func=_cmd_version)
 
     doctor_parser = subparsers.add_parser("doctor", help="Diagnose local dependencies.")

@@ -172,16 +172,12 @@ class MultiKrum(Aggregator):
         if f >= n - 1:
             raise ValueError(f"f must satisfy 0 <= f < n-1 (got n={n}, f={f})")
         if q > n - f:
-            raise ValueError(
-                f"q must satisfy 1 <= q <= n - f (got n={n}, f={f}, q={q})"
-            )
+            raise ValueError(f"q must satisfy 1 <= q <= n - f (got n={n}, f={f}, q={q})")
 
         be = get_backend()
         like, mats = _materialize_gradients(gradients)
         use_like = _HAS_TORCH and isinstance(like, torch.Tensor)
-        to_stack = [
-            be.asarray(g, like=like) if use_like else be.asarray(g) for g in mats
-        ]
+        to_stack = [be.asarray(g, like=like) if use_like else be.asarray(g) for g in mats]
         X = be.stack(to_stack, axis=0)  # (n, ...)
 
         D = _pairwise_sq_dists(X)  # (n, n)
@@ -207,9 +203,7 @@ class MultiKrum(Aggregator):
         if f >= n - 1:
             raise ValueError(f"f must satisfy 0 <= f < n-1 (got n={n}, f={f})")
         if q > n - f:
-            raise ValueError(
-                f"q must satisfy 1 <= q <= n - f (got n={n}, f={f}, q={q})"
-            )
+            raise ValueError(f"q must satisfy 1 <= q <= n - f (got n={n}, f={f}, q={q})")
 
         flat_shape, flat = flatten_gradients(gradients)
         flat = np.ascontiguousarray(flat, dtype=np.float32)

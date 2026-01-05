@@ -1,5 +1,6 @@
 import pytest
 import torch
+
 from byzpy.aggregators.norm_wise import CenteredClipping
 from byzpy.engine.graph.operator import OpContext
 
@@ -51,9 +52,7 @@ async def test_cc_barriered_matches_direct():
     pool = _StubPool()
 
     direct = agg.aggregate(grads)
-    barriered = await agg.run_barriered_subtasks(
-        {"gradients": grads}, context=ctx, pool=pool
-    )
+    barriered = await agg.run_barriered_subtasks({"gradients": grads}, context=ctx, pool=pool)
 
     assert torch.allclose(barriered, direct, atol=1e-7)
     assert pool.calls > 0

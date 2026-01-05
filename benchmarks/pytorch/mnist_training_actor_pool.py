@@ -19,13 +19,12 @@ from typing import List, Sequence
 import torch
 import torch.nn as nn
 import torch.utils.data as data
-from byzpy.aggregators.geometric_wise.minimum_diameter_average import (
-    MinimumDiameterAveraging,
-)
+from torchvision import datasets, transforms
+
+from byzpy.aggregators.geometric_wise.minimum_diameter_average import MinimumDiameterAveraging
 from byzpy.engine.graph.ops import make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
-from torchvision import datasets, transforms
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -138,11 +137,7 @@ async def _train_once(
     pool = None
     if pool_workers > 1:
         pool = ActorPool(
-            [
-                ActorPoolConfig(
-                    backend=pool_backend, count=pool_workers, name="mda-worker"
-                )
-            ]
+            [ActorPoolConfig(backend=pool_backend, count=pool_workers, name="mda-worker")]
         )
         await pool.start()
     scheduler = NodeScheduler(graph, pool=pool)
@@ -208,9 +203,7 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
             data_root=args.data_root,
         )
         runs.append(
-            BenchmarkRun(
-                f"ActorPool x{args.pool_workers} ({args.pool_backend})", actor_time
-            )
+            BenchmarkRun(f"ActorPool x{args.pool_workers} ({args.pool_backend})", actor_time)
         )
 
     return runs
@@ -226,27 +219,15 @@ def _parse_args() -> argparse.Namespace:
         default=14,
         help="Number of workers providing gradients.",
     )
-    parser.add_argument(
-        "--byz-workers", type=int, default=4, help="Number of Byzantine workers."
-    )
-    parser.add_argument(
-        "--f", type=int, default=4, help="MDA parameter f (vectors dropped)."
-    )
+    parser.add_argument("--byz-workers", type=int, default=4, help="Number of Byzantine workers.")
+    parser.add_argument("--f", type=int, default=4, help="MDA parameter f (vectors dropped).")
     parser.add_argument(
         "--chunk-size", type=int, default=128, help="Subsets evaluated per subtask."
     )
-    parser.add_argument(
-        "--rounds", type=int, default=3, help="Training rounds (global steps)."
-    )
-    parser.add_argument(
-        "--batch-size", type=int, default=64, help="Per-worker batch size."
-    )
-    parser.add_argument(
-        "--lr", type=float, default=0.05, help="Learning rate for SGD updates."
-    )
-    parser.add_argument(
-        "--pool-workers", type=int, default=4, help="ActorPool worker processes."
-    )
+    parser.add_argument("--rounds", type=int, default=3, help="Training rounds (global steps).")
+    parser.add_argument("--batch-size", type=int, default=64, help="Per-worker batch size.")
+    parser.add_argument("--lr", type=float, default=0.05, help="Learning rate for SGD updates.")
+    parser.add_argument("--pool-workers", type=int, default=4, help="ActorPool worker processes.")
     parser.add_argument(
         "--pool-backend",
         type=str,
@@ -254,9 +235,7 @@ def _parse_args() -> argparse.Namespace:
         help="Actor backend (process/thread/...).",
     )
     parser.add_argument("--seed", type=int, default=0, help="Random seed.")
-    parser.add_argument(
-        "--data-root", type=str, default="./data", help="MNIST data directory."
-    )
+    parser.add_argument("--data-root", type=str, default="./data", help="MNIST data directory.")
     return parser.parse_args()
 
 

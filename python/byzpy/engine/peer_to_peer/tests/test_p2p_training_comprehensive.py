@@ -10,6 +10,7 @@ import asyncio
 
 import pytest
 import torch
+
 from byzpy.aggregators.coordinate_wise import CoordinateWiseMedian
 from byzpy.attacks import EmpireAttack
 from byzpy.engine.actor.backends.thread import ThreadActorBackend
@@ -71,9 +72,7 @@ async def create_byzantine_actor() -> ByzantineNodeActor:
 async def test_p2p_training_ring_topology():
     """End-to-end P2P training with ring topology."""
     topology = Topology.ring(4, k=1)
-    honest_nodes = [
-        await create_honest_actor(torch.tensor([float(i), 0.0])) for i in range(4)
-    ]
+    honest_nodes = [await create_honest_actor(torch.tensor([float(i), 0.0])) for i in range(4)]
 
     p2p = PeerToPeer(
         honest_nodes=honest_nodes,
@@ -97,9 +96,7 @@ async def test_p2p_training_ring_topology():
 async def test_p2p_training_ring_with_byzantine():
     """End-to-end P2P training with ring topology and byzantine nodes."""
     topology = Topology.ring(5, k=1)
-    honest_nodes = [
-        await create_honest_actor(torch.tensor([float(i), 0.0])) for i in range(4)
-    ]
+    honest_nodes = [await create_honest_actor(torch.tensor([float(i), 0.0])) for i in range(4)]
     byz_nodes = [await create_byzantine_actor()]
 
     p2p = PeerToPeer(
@@ -124,9 +121,7 @@ async def test_p2p_training_ring_with_byzantine():
 async def test_p2p_training_complete_topology():
     """End-to-end P2P training with complete topology."""
     topology = Topology.complete(3)
-    honest_nodes = [
-        await create_honest_actor(torch.tensor([float(i), 0.0])) for i in range(3)
-    ]
+    honest_nodes = [await create_honest_actor(torch.tensor([float(i), 0.0])) for i in range(3)]
 
     p2p = PeerToPeer(
         honest_nodes=honest_nodes,
@@ -155,9 +150,7 @@ async def test_p2p_training_mixed_process_remote():
     await asyncio.sleep(0.3)
 
     topology = Topology.complete(2)
-    honest_nodes = [
-        await create_honest_actor(torch.tensor([float(i), 0.0])) for i in range(2)
-    ]
+    honest_nodes = [await create_honest_actor(torch.tensor([float(i), 0.0])) for i in range(2)]
 
     # For mixed contexts, both nodes need to be able to communicate
     # Use InProcessContext for both to avoid cross-context communication issues

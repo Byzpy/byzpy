@@ -79,9 +79,7 @@ class NodeApplication:
         metadata: Optional[Mapping[str, Any]] = None,
     ) -> None:
         if name in self._pipelines:
-            raise ValueError(
-                f"Pipeline {name!r} already registered for node {self.name!r}."
-            )
+            raise ValueError(f"Pipeline {name!r} already registered for node {self.name!r}.")
         self._pipelines[name] = NodePipeline(graph=graph, metadata=dict(metadata or {}))
 
     def has_pipeline(self, name: str) -> bool:
@@ -197,9 +195,7 @@ class HonestNodeApplication(NodeApplication):
         self, inputs: Mapping[str, Any], *, metadata: Optional[Mapping[str, Any]] = None
     ) -> Any:
         if not self.has_pipeline(self.GRADIENT_PIPELINE):
-            raise KeyError(
-                f"No honest gradient pipeline registered on node {self.name!r}."
-            )
+            raise KeyError(f"No honest gradient pipeline registered on node {self.name!r}.")
         result = await self.run_pipeline(
             self.GRADIENT_PIPELINE,
             inputs,
@@ -211,9 +207,7 @@ class HonestNodeApplication(NodeApplication):
         self, inputs: Mapping[str, Any], *, metadata: Optional[Mapping[str, Any]] = None
     ) -> Any:
         if not self.has_pipeline(self.GRADIENT_PIPELINE):
-            raise KeyError(
-                f"No honest gradient pipeline registered on node {self.name!r}."
-            )
+            raise KeyError(f"No honest gradient pipeline registered on node {self.name!r}.")
         result = self.run_pipeline_sync(
             self.GRADIENT_PIPELINE,
             inputs,

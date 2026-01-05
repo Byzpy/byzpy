@@ -105,9 +105,7 @@ class CoordinateWiseTrimmedMean(Aggregator):
         n = len(gradients)
         f = self.f
         if f < 0 or 2 * f >= n:
-            raise ValueError(
-                f"trim parameter f must satisfy 0 <= 2f < n (got n={n}, f={f})"
-            )
+            raise ValueError(f"trim parameter f must satisfy 0 <= 2f < n (got n={n}, f={f})")
 
         be = get_backend()
         like = gradients[0]
@@ -124,9 +122,7 @@ class CoordinateWiseTrimmedMean(Aggregator):
         n = len(gradients)
         f = self.f
         if f < 0 or 2 * f >= n:
-            raise ValueError(
-                f"trim parameter f must satisfy 0 <= 2f < n (got n={n}, f={f})"
-            )
+            raise ValueError(f"trim parameter f must satisfy 0 <= 2f < n (got n={n}, f={f})")
 
         flat_shape, flat = _flatten_gradients(gradients)
         self._flat_shape = flat_shape
@@ -135,9 +131,7 @@ class CoordinateWiseTrimmedMean(Aggregator):
         features = flat.shape[1]
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
-        chunk = select_adaptive_chunk_size(
-            features, self.chunk_size, pool_size=pool_size
-        )
+        chunk = select_adaptive_chunk_size(features, self.chunk_size, pool_size=pool_size)
 
         def _iter_subtasks() -> Iterable[SubTask]:
             chunk_id = 0

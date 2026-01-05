@@ -10,6 +10,7 @@ import asyncio
 
 import pytest
 import torch
+
 from byzpy.engine.actor.backends.thread import ThreadActorBackend
 from byzpy.engine.node.actors import ByzantineNodeActor, HonestNodeActor
 from byzpy.engine.node.cluster import DecentralizedCluster
@@ -233,9 +234,7 @@ async def test_decentralizedpeertopeer_supports_mixed_contexts():
 async def test_decentralizedpeertopeer_node_count_matches_input():
     """Verify DecentralizedPeerToPeer creates correct number of nodes."""
     topology = Topology.ring(5, k=1)
-    honest_nodes = [
-        await create_honest_actor(torch.tensor([float(i), 0.0])) for i in range(3)
-    ]
+    honest_nodes = [await create_honest_actor(torch.tensor([float(i), 0.0])) for i in range(3)]
     byz_nodes = [await create_byzantine_actor() for _ in range(2)]
 
     p2p = PeerToPeer(

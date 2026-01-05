@@ -11,23 +11,16 @@ from dataclasses import dataclass
 from typing import Sequence
 
 import torch
+
 from byzpy.aggregators.geometric_wise.geometric_median import GeometricMedian
 from byzpy.engine.graph.ops import make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
 
 try:
-    from ._worker_args import (
-        DEFAULT_WORKER_COUNTS,
-        coerce_worker_counts,
-        parse_worker_counts,
-    )
+    from ._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
 except ImportError:
-    from _worker_args import (
-        DEFAULT_WORKER_COUNTS,
-        coerce_worker_counts,
-        parse_worker_counts,
-    )
+    from _worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
 
 
 @dataclass(frozen=True)
@@ -44,19 +37,13 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Benchmark Geometric Median with ActorPool vs PyTorch."
     )
-    parser.add_argument(
-        "--num-grads", type=int, default=64, help="Number of gradients (n)."
-    )
-    parser.add_argument(
-        "--grad-dim", type=int, default=65536, help="Gradient dimension."
-    )
+    parser.add_argument("--num-grads", type=int, default=64, help="Number of gradients (n).")
+    parser.add_argument("--grad-dim", type=int, default=65536, help="Gradient dimension.")
     parser.add_argument(
         "--chunk-size", type=int, default=16, help="Gradients processed per subtask."
     )
     parser.add_argument("--tol", type=float, default=1e-6, help="Weiszfeld tolerance.")
-    parser.add_argument(
-        "--max-iter", type=int, default=128, help="Maximum Weiszfeld iterations."
-    )
+    parser.add_argument("--max-iter", type=int, default=128, help="Maximum Weiszfeld iterations.")
     parser.add_argument(
         "--init",
         type=str,
@@ -77,29 +64,18 @@ def _parse_args() -> argparse.Namespace:
         default="process",
         help="Actor backend (thread/process/...).",
     )
-    parser.add_argument(
-        "--warmup", type=int, default=1, help="Warm-up iterations per mode."
-    )
-    parser.add_argument(
-        "--repeat", type=int, default=3, help="Timed iterations per mode."
-    )
-    parser.add_argument(
-        "--seed", type=int, default=0, help="Random seed for synthetic gradients."
-    )
+    parser.add_argument("--warmup", type=int, default=1, help="Warm-up iterations per mode.")
+    parser.add_argument("--repeat", type=int, default=3, help="Timed iterations per mode.")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for synthetic gradients.")
     args = parser.parse_args()
     args.pool_workers = parse_worker_counts(args.pool_workers)
     return args
 
 
-def _make_gradients(
-    n: int, dim: int, seed: int, device: torch.device
-) -> list[torch.Tensor]:
+def _make_gradients(n: int, dim: int, seed: int, device: torch.device) -> list[torch.Tensor]:
     gen = torch.Generator(device=device)
     gen.manual_seed(seed)
-    return [
-        torch.randn(dim, generator=gen, device=device, dtype=torch.float32)
-        for _ in range(n)
-    ]
+    return [torch.randn(dim, generator=gen, device=device, dtype=torch.float32) for _ in range(n)]
 
 
 def _time_direct(
@@ -137,9 +113,7 @@ async def _time_scheduler(
 
 
 async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
-    worker_counts = coerce_worker_counts(
-        getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS)
-    )
+    worker_counts = coerce_worker_counts(getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS))
     device = torch.device("cpu")
     grads = _make_gradients(args.num_grads, args.grad_dim, args.seed, device)
 
@@ -149,9 +123,7 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
         init=args.init,
         chunk_size=args.chunk_size,
     )
-    direct_time = _time_direct(
-        aggregator, grads, iterations=args.repeat, warmup=args.warmup
-    )
+    direct_time = _time_direct(aggregator, grads, iterations=args.repeat, warmup=args.warmup)
 
     graph = make_single_operator_graph(
         node_name="geom_median",
@@ -189,16 +161,12 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
             )
         finally:
             await pool.shutdown()
-        runs.append(
-            BenchmarkRun(f"ActorPool x{workers} ({args.pool_backend})", pool_time)
-        )
+        runs.append(BenchmarkRun(f"ActorPool x{workers} ({args.pool_backend})", pool_time))
     return runs
 
 
 def _print_results(runs: Sequence[BenchmarkRun]) -> None:
-    baseline_run = next(
-        (run for run in runs if "Direct aggregate" in run.mode), runs[0]
-    )
+    baseline_run = next((run for run in runs if "Direct aggregate" in run.mode), runs[0])
     baseline = baseline_run.avg_seconds
     print("\nGeometric Median Benchmark")
     print("--------------------------")

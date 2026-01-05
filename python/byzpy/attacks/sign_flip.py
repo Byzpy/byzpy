@@ -5,6 +5,7 @@ from typing import Any, Iterable, List, Optional
 import numpy as np
 import torch
 import torch.nn as nn
+
 from byzpy.aggregators._chunking import select_adaptive_chunk_size
 from byzpy.attacks.base import Attack
 from byzpy.configs.backend import get_backend
@@ -85,11 +86,7 @@ class SignFlipAttack(Attack):
         if not partials:
             return super().compute(inputs, context=context)
 
-        if (
-            self._handle is None
-            or self._flat_shape is None
-            or self._like_template is None
-        ):
+        if self._handle is None or self._flat_shape is None or self._like_template is None:
             raise RuntimeError("SignFlipAttack missing chunk state.")
 
         total = int(np.prod(self._flat_shape))

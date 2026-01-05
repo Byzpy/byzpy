@@ -23,9 +23,7 @@ def set_backend(backend: _Backend | str) -> None:
         else:
             raise ValueError(f"Unknown backend string: {backend!r}")
     elif isinstance(backend, _Backend) or (
-        hasattr(backend, "asarray")
-        and hasattr(backend, "stack")
-        and hasattr(backend, "median")
+        hasattr(backend, "asarray") and hasattr(backend, "stack") and hasattr(backend, "median")
     ):
         _BACKEND = backend  # custom implementation
     else:

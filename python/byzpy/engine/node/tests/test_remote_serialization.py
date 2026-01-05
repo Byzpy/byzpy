@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 import torch
+
 from byzpy.engine.node.remote_client import deserialize_message, serialize_message
 
 # =============================================================================

@@ -5,6 +5,7 @@ import time
 
 import pytest
 import torch
+
 from byzpy.aggregators.geometric_wise import MultiKrum
 from byzpy.engine.graph.ops import make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
@@ -92,9 +93,7 @@ def test_cluster_with_local_transport():
         cluster.stop_all()
 
 
-@pytest.mark.skip(
-    reason="Flaky test - queue.Empty timeout issue with actor pool in NodeRunner"
-)
+@pytest.mark.skip(reason="Flaky test - queue.Empty timeout issue with actor pool in NodeRunner")
 def test_runner_can_host_scheduler_with_actor_pool():
     def step(state: dict) -> dict:
         if state.get("done"):
@@ -105,9 +104,7 @@ def test_runner_can_host_scheduler_with_actor_pool():
             torch.tensor([-1.0, 0.0]),
         ]
         agg = MultiKrum(f=0, q=2, chunk_size=2)
-        graph = make_single_operator_graph(
-            node_name="agg", operator=agg, input_keys=("gradients",)
-        )
+        graph = make_single_operator_graph(node_name="agg", operator=agg, input_keys=("gradients",))
         pool = ActorPool([ActorPoolConfig(backend="thread", count=2)])
 
         async def _run():

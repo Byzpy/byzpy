@@ -19,9 +19,7 @@ class ServerNodeContext(NodeContext):
     Routes messages to local nodes via InProcessContext, and to remote clients via the server.
     """
 
-    def __init__(
-        self, server: "RemoteNodeServer", in_process_context: InProcessContext
-    ):
+    def __init__(self, server: "RemoteNodeServer", in_process_context: InProcessContext):
         """
         Initialize server node context.
 
@@ -38,9 +36,7 @@ class ServerNodeContext(NodeContext):
         self._node = node
         await self._in_process.start(node)
 
-    async def send_message(
-        self, to_node_id: str, message_type: str, payload: Any
-    ) -> None:
+    async def send_message(self, to_node_id: str, message_type: str, payload: Any) -> None:
         """
         Send message to target node.
 
@@ -58,9 +54,7 @@ class ServerNodeContext(NodeContext):
                 client_writer, from_node_id, message_type, payload
             )
         else:
-            raise ValueError(
-                f"Node {to_node_id} not found (not local and not registered remote)"
-            )
+            raise ValueError(f"Node {to_node_id} not found (not local and not registered remote)")
 
     async def receive_messages(self):
         """Receive messages - delegate to in-process context."""
@@ -93,9 +87,7 @@ class RemoteNodeServer:
         self._nodes: Dict[str, "DecentralizedNode"] = {}
         self._server: Optional[asyncio.Server] = None
         self._running = False
-        self._client_connections: Dict[str, asyncio.StreamWriter] = (
-            {}
-        )  # node_id -> writer
+        self._client_connections: Dict[str, asyncio.StreamWriter] = {}  # node_id -> writer
         self._client_writers: Dict[asyncio.StreamWriter, str] = {}  # writer -> node_id
 
     async def register_node(self, node: "DecentralizedNode") -> None:
@@ -109,9 +101,7 @@ class RemoteNodeServer:
             ValueError: If node ID already registered
         """
         if node.node_id in self._nodes:
-            raise ValueError(
-                f"Node {node.node_id} is already registered on this server"
-            )
+            raise ValueError(f"Node {node.node_id} is already registered on this server")
 
         # Replace node's context with ServerNodeContext for routing
         in_process_context = InProcessContext()
@@ -126,9 +116,7 @@ class RemoteNodeServer:
         if self._running:
             return
 
-        self._server = await asyncio.start_server(
-            self._handle_client, self.host, self.port
-        )
+        self._server = await asyncio.start_server(self._handle_client, self.host, self.port)
         self._running = True
 
         async with self._server:
@@ -152,15 +140,11 @@ class RemoteNodeServer:
             while self._running:
                 try:
                     # Read length prefix
-                    length_bytes = await asyncio.wait_for(
-                        reader.readexactly(4), timeout=1.0
-                    )
+                    length_bytes = await asyncio.wait_for(reader.readexactly(4), timeout=1.0)
                     length = int.from_bytes(length_bytes, byteorder="big")
 
                     # Read message
-                    data = await asyncio.wait_for(
-                        reader.readexactly(length), timeout=5.0
-                    )
+                    data = await asyncio.wait_for(reader.readexactly(length), timeout=5.0)
 
                     msg = deserialize_message(data)
 

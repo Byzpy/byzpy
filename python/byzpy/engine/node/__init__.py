@@ -1,8 +1,4 @@
-from byzpy.engine.graph.ops import (
-    CallableOp,
-    RemoteCallableOp,
-    make_single_operator_graph,
-)
+from byzpy.engine.graph.ops import CallableOp, RemoteCallableOp, make_single_operator_graph
 
 from .application import (
     ByzantineNodeApplication,

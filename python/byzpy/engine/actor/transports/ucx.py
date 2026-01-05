@@ -126,8 +126,7 @@ async def call(host: str, port: int, fn):
         # Retry on common UCX transport errors
         errname = type(e).__name__
         if any(
-            s in errname
-            for s in ("UCXXError", "UCXXConnectionResetError", "UCXXCanceledError")
+            s in errname for s in ("UCXXError", "UCXXConnectionResetError", "UCXXCanceledError")
         ):
             _evict_ucx_endpoint(host, port)
             return await _once()
@@ -251,9 +250,7 @@ async def send_payload(ep, tag: str, desc: Any, obj: Any) -> None:
         ca = _cuda_to_cupy_view(obj)
         await ep.send(ca)  # device-to-device
     else:
-        data: bytes = (
-            desc if isinstance(desc, (bytes, bytearray)) else pickle.dumps(obj)
-        )
+        data: bytes = desc if isinstance(desc, (bytes, bytearray)) else pickle.dumps(obj)
         await ep.send(_UCX_HDR.pack(len(data)))
         await ep.send(data)
 

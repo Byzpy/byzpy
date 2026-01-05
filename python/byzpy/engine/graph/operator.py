@@ -45,16 +45,12 @@ class Operator:
         *,
         context: OpContext,
     ) -> Any:
-        raise RuntimeError(
-            f"Operator {self.name} does not implement reduce_subtasks()."
-        )
+        raise RuntimeError(f"Operator {self.name} does not implement reduce_subtasks().")
 
     async def run_barriered_subtasks(
         self, inputs: Mapping[str, Any], *, context: OpContext, pool: ActorPool
     ) -> Any:
-        raise RuntimeError(
-            f"Operator {self.name} does not implement barriered subtasks."
-        )
+        raise RuntimeError(f"Operator {self.name} does not implement barriered subtasks.")
 
     async def run(
         self, inputs: Mapping[str, Any], *, context: OpContext, pool: ActorPool | None
@@ -69,9 +65,7 @@ class Operator:
             subtasks_iter = self.create_subtasks(inputs, context=context)
             partials = await self._run_subtasks(pool, subtasks_iter, self.max_subtasks_inflight, context)  # type: ignore[arg-type]
             if partials:
-                return await _maybe_await(
-                    self.reduce_subtasks(partials, inputs, context=context)
-                )
+                return await _maybe_await(self.reduce_subtasks(partials, inputs, context=context))
 
         return await _maybe_await(self.compute(inputs, context=context))
 
@@ -168,13 +162,9 @@ class MessageTriggerOp(Operator):
     ) -> Any:
         scheduler = context.metadata.get("scheduler")
         if scheduler is None:
-            raise RuntimeError(
-                "MessageTriggerOp requires scheduler in context metadata"
-            )
+            raise RuntimeError("MessageTriggerOp requires scheduler in context metadata")
 
-        message = await scheduler.wait_for_message(
-            self.message_type, timeout=self.timeout
-        )
+        message = await scheduler.wait_for_message(self.message_type, timeout=self.timeout)
         return message
 
 

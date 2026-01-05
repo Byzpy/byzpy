@@ -9,6 +9,7 @@ from typing import Any, Mapping, Sequence
 
 import pytest
 import torch
+
 from byzpy.aggregators.coordinate_wise.median import CoordinateWiseMedian
 from byzpy.aggregators.geometric_wise.krum import MultiKrum
 from byzpy.attacks.empire import EmpireAttack

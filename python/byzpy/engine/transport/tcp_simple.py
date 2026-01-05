@@ -54,9 +54,7 @@ class TcpMailbox:
                 continue
             except OSError:
                 break
-            threading.Thread(
-                target=self._handle_conn, args=(conn,), daemon=True
-            ).start()
+            threading.Thread(target=self._handle_conn, args=(conn,), daemon=True).start()
 
     def _handle_conn(self, conn: socket.socket) -> None:
         with conn:

@@ -75,9 +75,7 @@ class DecentralizedCluster:
             node._node_id_map = self._node_id_map.copy()
             node.message_router._node_id_map = self._node_id_map.copy()
             # Build reverse map
-            node.message_router._reverse_id_map = {
-                v: k for k, v in self._node_id_map.items()
-            }
+            node.message_router._reverse_id_map = {v: k for k, v in self._node_id_map.items()}
 
     async def start_all(self) -> None:
         """Start all nodes in the cluster."""

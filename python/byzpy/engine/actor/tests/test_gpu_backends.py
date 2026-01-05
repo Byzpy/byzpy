@@ -10,6 +10,7 @@ from typing import Tuple
 import pytest
 import pytest_asyncio
 import torch
+
 from byzpy.engine.actor.backends.gpu import (
     GPUActorBackend,
     UCXRemoteActorBackend,
@@ -74,9 +75,7 @@ async def _wait_until_listening_tcp(host: str, port: int, timeout: float = 3.0) 
         except Exception as e:
             last_err = e
             if asyncio.get_event_loop().time() >= deadline:
-                raise TimeoutError(
-                    f"TCP server {host}:{port} did not start: {last_err!r}"
-                )
+                raise TimeoutError(f"TCP server {host}:{port} did not start: {last_err!r}")
             await asyncio.sleep(0.05)
 
 
@@ -96,9 +95,7 @@ async def _wait_until_listening_ucx(host: str, port: int, timeout: float = 5.0) 
         except Exception as e:
             last_err = e
             if asyncio.get_event_loop().time() >= deadline:
-                raise TimeoutError(
-                    f"UCX server {host}:{port} did not start: {last_err!r}"
-                )
+                raise TimeoutError(f"UCX server {host}:{port} did not start: {last_err!r}")
             await asyncio.sleep(0.05)
 
 
@@ -217,9 +214,7 @@ async def ucx_server_addr():
         th.join(timeout=3.0)
 
 
-async def _make_backend(
-    kind: str, tcp_addr: Tuple[str, int], ucx_addr: Tuple[str, int] | None
-):
+async def _make_backend(kind: str, tcp_addr: Tuple[str, int], ucx_addr: Tuple[str, int] | None):
     if kind == "thread":
         return ThreadActorBackend()
     if kind == "process":
@@ -281,9 +276,7 @@ _GPU_MATRIX = [
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kindA,kindB", _GPU_MATRIX)
-async def test_gpu_cross_backend_matrix_cpu(
-    kindA, kindB, tcp_server_addr, ucx_server_addr=None
-):
+async def test_gpu_cross_backend_matrix_cpu(kindA, kindB, tcp_server_addr, ucx_server_addr=None):
     A = await _make_backend(kindA, tcp_server_addr, ucx_server_addr)
     B = await _make_backend(kindB, tcp_server_addr, ucx_server_addr)
 
@@ -318,9 +311,7 @@ _UCX_MATRIX = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kindA,kindB", _UCX_MATRIX)
 @pytest.mark.skipif(not UCX_GPU_OK, reason="UCX/CUDA/CuPy not available")
-async def test_gpu_ucx_cross_backend_cuda(
-    kindA, kindB, tcp_server_addr, ucx_server_addr
-):
+async def test_gpu_ucx_cross_backend_cuda(kindA, kindB, tcp_server_addr, ucx_server_addr):
     """
     UCX path with CUDA tensors: exercises GPU→UCX and UCX→GPU, plus UCX→UCX.
     """

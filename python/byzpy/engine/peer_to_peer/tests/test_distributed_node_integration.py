@@ -8,15 +8,13 @@ import asyncio
 
 import pytest
 import torch
+
 from byzpy.aggregators.coordinate_wise import CoordinateWiseMedian
 from byzpy.attacks import EmpireAttack
 from byzpy.engine.graph.pool import ActorPoolConfig
 from byzpy.engine.node.context import InProcessContext
 from byzpy.engine.node.decentralized import DecentralizedNode
-from byzpy.engine.node.distributed import (
-    DistributedByzantineNode,
-    DistributedHonestNode,
-)
+from byzpy.engine.node.distributed import DistributedByzantineNode, DistributedHonestNode
 from byzpy.engine.peer_to_peer.topology import Topology
 
 
@@ -84,9 +82,7 @@ async def test_distributedp2phonestnode_half_step_execution():
 
     x = torch.tensor([1.0, 2.0])
     y = torch.tensor([0.5, 1.0])
-    result = await node.execute_pipeline(
-        HonestNodeApplication.GRADIENT_PIPELINE, {"x": x, "y": y}
-    )
+    result = await node.execute_pipeline(HonestNodeApplication.GRADIENT_PIPELINE, {"x": x, "y": y})
 
     assert "honest_gradient" in result
 

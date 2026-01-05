@@ -6,6 +6,7 @@ from typing import Any, Iterable, List, Optional
 import numpy as np
 import torch
 import torch.nn as nn
+
 from byzpy.aggregators._chunking import select_adaptive_chunk_size
 from byzpy.aggregators.coordinate_wise._tiling import flatten_gradients
 from byzpy.attacks.base import Attack
@@ -88,9 +89,7 @@ class LittleAttack(Attack):
     supports_subtasks = True
     max_subtasks_inflight = 0
 
-    def __init__(
-        self, f: int, N: Optional[int] = None, *, chunk_size: int = 8192
-    ) -> None:
+    def __init__(self, f: int, N: Optional[int] = None, *, chunk_size: int = 8192) -> None:
         if f < 0:
             raise ValueError("f must be >= 0")
         self.f, self.N = f, N
@@ -149,9 +148,7 @@ class LittleAttack(Attack):
         features = flat.shape[1]
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
-        chunk = select_adaptive_chunk_size(
-            features, self.chunk_size, pool_size=pool_size
-        )
+        chunk = select_adaptive_chunk_size(features, self.chunk_size, pool_size=pool_size)
 
         def _iter() -> Iterable[SubTask]:
             chunk_id = 0

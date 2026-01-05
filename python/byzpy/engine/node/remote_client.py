@@ -80,13 +80,9 @@ class RemoteNodeClient:
             self._running = True
             self._receive_task = asyncio.create_task(self._receive_loop())
         except (OSError, ConnectionRefusedError) as e:
-            raise ConnectionError(
-                f"Failed to connect to {self.host}:{self.port}"
-            ) from e
+            raise ConnectionError(f"Failed to connect to {self.host}:{self.port}") from e
         except asyncio.TimeoutError:
-            raise asyncio.TimeoutError(
-                f"Connection to {self.host}:{self.port} timed out"
-            )
+            raise asyncio.TimeoutError(f"Connection to {self.host}:{self.port} timed out")
 
     async def disconnect(self) -> None:
         """Disconnect from the server."""
@@ -179,16 +175,11 @@ class RemoteNodeClient:
         except Exception as e:
             # Check if it's a connection-related error
             error_str = str(e).lower()
-            if any(
-                keyword in error_str
-                for keyword in ["closed", "broken", "reset", "connection"]
-            ):
+            if any(keyword in error_str for keyword in ["closed", "broken", "reset", "connection"]):
                 self._connected = False
             raise RuntimeError(f"Failed to send message: {e}") from e
 
-    async def receive_message(
-        self, timeout: Optional[float] = None
-    ) -> Optional[Dict[str, Any]]:
+    async def receive_message(self, timeout: Optional[float] = None) -> Optional[Dict[str, Any]]:
         """
         Receive a message from the server.
 
@@ -200,9 +191,7 @@ class RemoteNodeClient:
         """
         try:
             if timeout is not None:
-                return await asyncio.wait_for(
-                    self._message_queue.get(), timeout=timeout
-                )
+                return await asyncio.wait_for(self._message_queue.get(), timeout=timeout)
             else:
                 return await self._message_queue.get()
         except asyncio.TimeoutError:
@@ -244,15 +233,11 @@ class RemoteNodeClient:
 
                 try:
                     # Read length prefix with shorter timeout for faster disconnection detection
-                    length_bytes = await asyncio.wait_for(
-                        self._reader.readexactly(4), timeout=0.05
-                    )
+                    length_bytes = await asyncio.wait_for(self._reader.readexactly(4), timeout=0.05)
                     length = int.from_bytes(length_bytes, byteorder="big")
 
                     # Read message
-                    data = await asyncio.wait_for(
-                        self._reader.readexactly(length), timeout=5.0
-                    )
+                    data = await asyncio.wait_for(self._reader.readexactly(length), timeout=5.0)
 
                     msg = deserialize_message(data)
                     await self._message_queue.put(msg)

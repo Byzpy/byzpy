@@ -3,6 +3,7 @@
 import asyncio
 
 import pytest
+
 from byzpy.engine.graph.pool import ActorPoolConfig
 from byzpy.engine.node.application import NodeApplication
 from byzpy.engine.node.context import InProcessContext
@@ -99,9 +100,7 @@ async def test_remotenodeclient_send_receive(make_app):
     await client.register_node("client_node")
 
     # Send message
-    await client.send_message(
-        "server_node", "test", {"value": 42}, from_node_id="client_node"
-    )
+    await client.send_message("server_node", "test", {"value": 42}, from_node_id="client_node")
     await asyncio.sleep(0.3)
 
     assert len(received) == 1

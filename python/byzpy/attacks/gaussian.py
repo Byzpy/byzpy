@@ -5,6 +5,7 @@ from typing import Any, Iterable, List, Optional, Sequence
 import numpy as np
 import torch
 import torch.nn as nn
+
 from byzpy.aggregators._chunking import select_adaptive_chunk_size
 from byzpy.aggregators.coordinate_wise._tiling import flatten_gradients
 from byzpy.attacks.base import Attack
@@ -120,11 +121,7 @@ class GaussianAttack(Attack):
     def reduce_subtasks(self, partials, inputs, *, context):  # type: ignore[override]
         if not partials:
             return super().compute(inputs, context=context)
-        if (
-            self._handle is None
-            or self._flat_shape is None
-            or self._like_template is None
-        ):
+        if self._handle is None or self._flat_shape is None or self._like_template is None:
             raise RuntimeError("GaussianAttack missing state for reduction.")
 
         try:

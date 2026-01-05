@@ -12,12 +12,7 @@ except Exception:  # pragma: no cover
     torch = None  # type: ignore
     _HAS_TORCH = False
 
-from ..storage.shared_store import (
-    SharedTensorHandle,
-    cleanup_tensor,
-    open_tensor,
-    register_tensor,
-)
+from ..storage.shared_store import SharedTensorHandle, cleanup_tensor, open_tensor, register_tensor
 
 _SHM_MARK = "__BYZ_SHARED_TENSOR__"
 

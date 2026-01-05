@@ -5,6 +5,7 @@ from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
+
 from byzpy.aggregators._chunking import select_adaptive_chunk_size
 from byzpy.aggregators.coordinate_wise._tiling import flatten_gradients
 from byzpy.attacks.base import Attack
@@ -124,11 +125,7 @@ class EmpireAttack(Attack):
         if not partials:
             return super().compute(inputs, context=context)
 
-        if (
-            self._active_handle is None
-            or self._flat_shape is None
-            or self._like_template is None
-        ):
+        if self._active_handle is None or self._flat_shape is None or self._like_template is None:
             raise RuntimeError("EmpireAttack missing handle state for reduction.")
 
         total = None
@@ -172,9 +169,7 @@ class EmpireAttack(Attack):
         return list(grads)
 
 
-def _empire_partial_sum(
-    handle: SharedTensorHandle, start: int, end: int
-) -> Tuple[np.ndarray, int]:
+def _empire_partial_sum(handle: SharedTensorHandle, start: int, end: int) -> Tuple[np.ndarray, int]:
     if start >= end:
         raise ValueError("EmpireAttack subtasks require at least one gradient.")
     with open_tensor(handle) as flat:

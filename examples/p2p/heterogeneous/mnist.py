@@ -10,16 +10,9 @@ import torch.utils.data as data
 from torchvision import datasets, transforms
 
 SCRIPT_DIR = os.path.dirname(__file__)
-PROJECT_ROOT = os.path.abspath(
-    os.path.join(SCRIPT_DIR, os.pardir, os.pardir, os.pardir)
-)
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir, os.pardir, os.pardir))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
-
-from byzpy.configs.actor import set_actor
-from byzpy.engine.node.actors import ByzantineNodeActor, HonestNodeActor
-from byzpy.engine.peer_to_peer.topology import Topology
-from byzpy.engine.peer_to_peer.train import PeerToPeer
 
 from examples.p2p.nodes import (
     DistributedP2PByzNode,
@@ -27,6 +20,11 @@ from examples.p2p.nodes import (
     SmallCNN,
     select_pool_backend,
 )
+
+from byzpy.configs.actor import set_actor
+from byzpy.engine.node.actors import ByzantineNodeActor, HonestNodeActor
+from byzpy.engine.peer_to_peer.topology import Topology
+from byzpy.engine.peer_to_peer.train import PeerToPeer
 
 
 def shard_indices(n_items: int, n_shards: int) -> List[List[int]]:
@@ -83,9 +81,7 @@ async def main():
     ]
 
     tfm = transforms.Compose([transforms.ToTensor()])
-    _tmp_train = datasets.MNIST(
-        root=data_root, train=True, download=True, transform=tfm
-    )
+    _tmp_train = datasets.MNIST(root=data_root, train=True, download=True, transform=tfm)
     shards = shard_indices(len(_tmp_train), n_honest)
 
     def pick_backend(i: int) -> str:

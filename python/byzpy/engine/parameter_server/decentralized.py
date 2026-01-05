@@ -26,9 +26,7 @@ class DecentralizedParameterServer:
         self._honest = honest_nodes
         self._byz = byzantine_nodes or []
         grad_fns = [lambda h=h: h.grad for h in self._honest]
-        self._runner = ParameterServerRunner(
-            worker_grad_fns=grad_fns, aggregator=aggregator
-        )
+        self._runner = ParameterServerRunner(worker_grad_fns=grad_fns, aggregator=aggregator)
 
     async def bootstrap(self) -> None:
         self._runner.start()

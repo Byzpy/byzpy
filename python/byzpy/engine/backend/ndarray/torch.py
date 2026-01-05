@@ -44,14 +44,10 @@ class _TorchBackend(_Backend[torch.Tensor]):
             return torch.take_along_dim(a, indices, dim=axis)
         return torch.gather(a, dim=axis, index=indices)
 
-    def sum(
-        self, x: torch.Tensor, axis: int | tuple[int, ...] | None = None
-    ) -> torch.Tensor:
+    def sum(self, x: torch.Tensor, axis: int | tuple[int, ...] | None = None) -> torch.Tensor:
         return torch.sum(x, dim=axis) if axis is not None else torch.sum(x)
 
-    def index_select(
-        self, a: torch.Tensor, axis: int, indices: torch.Tensor
-    ) -> torch.Tensor:
+    def index_select(self, a: torch.Tensor, axis: int, indices: torch.Tensor) -> torch.Tensor:
         if indices.dtype != torch.long:
             indices = indices.to(torch.long)
         return torch.index_select(a, dim=axis, index=indices)
@@ -65,9 +61,7 @@ class _TorchBackend(_Backend[torch.Tensor]):
     def reshape(self, x: torch.Tensor, newshape: tuple[int, ...]) -> torch.Tensor:
         return x.reshape(newshape)
 
-    def max(
-        self, x: torch.Tensor, axis: int | tuple[int, ...] | None = None
-    ) -> torch.Tensor:
+    def max(self, x: torch.Tensor, axis: int | tuple[int, ...] | None = None) -> torch.Tensor:
         return torch.amax(x, dim=axis) if axis is not None else torch.amax(x)
 
     def minimum(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:

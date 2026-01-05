@@ -1,4 +1,5 @@
 import torch
+
 from byzpy.engine.graph.operator import OpContext
 from byzpy.engine.storage.shared_store import cleanup_tensor
 from byzpy.pre_aggregators import Bucketing
@@ -37,9 +38,7 @@ def test_bucketing_chunk_matches_direct():
     )
 
     def _stack(vals):
-        return torch.stack(
-            [v if isinstance(v, torch.Tensor) else torch.as_tensor(v) for v in vals]
-        )
+        return torch.stack([v if isinstance(v, torch.Tensor) else torch.as_tensor(v) for v in vals])
 
     assert torch.allclose(_stack(direct), _stack(reduced), atol=1e-6)
 

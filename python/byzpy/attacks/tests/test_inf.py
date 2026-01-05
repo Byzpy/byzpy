@@ -1,4 +1,5 @@
 import torch
+
 from byzpy.attacks.inf import InfAttack
 from byzpy.engine.graph.operator import OpContext
 

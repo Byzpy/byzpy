@@ -11,6 +11,7 @@ import asyncio
 import pytest
 import torch
 import torch.nn as nn
+
 from byzpy.aggregators.coordinate_wise import CoordinateWiseMedian
 from byzpy.engine.graph.graph import ComputationGraph, GraphInput, GraphNode
 from byzpy.engine.graph.ops import CallableOp, make_single_operator_graph
@@ -33,9 +34,7 @@ async def test_p2p_half_step_pipeline_triggered_locally():
 
     graph = make_single_operator_graph(
         node_name="half_step",
-        operator=CallableOp(
-            half_step_op, input_mapping={"x": "x", "y": "y", "lr": "lr"}
-        ),
+        operator=CallableOp(half_step_op, input_mapping={"x": "x", "y": "y", "lr": "lr"}),
         input_keys=("x", "y", "lr"),
     )
     app.register_pipeline("half_step", graph)
@@ -81,9 +80,7 @@ async def test_p2p_half_step_pipeline_with_model():
 
     graph = make_single_operator_graph(
         node_name="half_step",
-        operator=CallableOp(
-            compute_gradient, input_mapping={"x": "x", "y": "y", "lr": "lr"}
-        ),
+        operator=CallableOp(compute_gradient, input_mapping={"x": "x", "y": "y", "lr": "lr"}),
         input_keys=("x", "y", "lr"),
     )
     app.register_pipeline("half_step", graph)
@@ -186,9 +183,7 @@ async def test_p2p_aggregation_pipeline_with_message_source():
         torch.tensor([3.0, 4.0]),
     ]
 
-    result = await node.execute_pipeline(
-        "aggregate_from_messages", {"gradients": gradients}
-    )
+    result = await node.execute_pipeline("aggregate_from_messages", {"gradients": gradients})
 
     assert "aggregate" in result
     # Median should be [2.0, 3.0]
@@ -227,9 +222,7 @@ async def test_p2p_broadcast_pipeline_sends_to_neighbors():
 
         graph = make_single_operator_graph(
             node_name="broadcast",
-            operator=CallableOp(
-                make_broadcast_op(f"node{i}"), input_mapping={"vector": "vector"}
-            ),
+            operator=CallableOp(make_broadcast_op(f"node{i}"), input_mapping={"vector": "vector"}),
             input_keys=("vector",),
         )
         app.register_pipeline("broadcast", graph)

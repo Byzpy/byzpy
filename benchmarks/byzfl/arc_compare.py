@@ -27,21 +27,15 @@ class BenchmarkRun:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Benchmark ByzFL's ARC implementation."
-    )
-    parser.add_argument(
-        "--num-vectors", type=int, default=256, help="Number of vectors."
-    )
+    parser = argparse.ArgumentParser(description="Benchmark ByzFL's ARC implementation.")
+    parser.add_argument("--num-vectors", type=int, default=256, help="Number of vectors.")
     parser.add_argument("--dim", type=int, default=65536, help="Vector dimension.")
     parser.add_argument(
         "--f", type=int, default=8, help="Expected Byzantine count (controls clipping)."
     )
     parser.add_argument("--warmup", type=int, default=0, help="Warm-up iterations.")
     parser.add_argument("--repeat", type=int, default=2, help="Timed iterations.")
-    parser.add_argument(
-        "--seed", type=int, default=0, help="Random seed for synthetic vectors."
-    )
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for synthetic vectors.")
     parser.add_argument(
         "--timeout",
         type=float,
@@ -51,15 +45,10 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _make_vectors(
-    n: int, dim: int, seed: int, device: torch.device
-) -> list[torch.Tensor]:
+def _make_vectors(n: int, dim: int, seed: int, device: torch.device) -> list[torch.Tensor]:
     gen = torch.Generator(device=device)
     gen.manual_seed(seed)
-    return [
-        torch.randn(dim, generator=gen, device=device, dtype=torch.float32)
-        for _ in range(n)
-    ]
+    return [torch.randn(dim, generator=gen, device=device, dtype=torch.float32) for _ in range(n)]
 
 
 def _require_byzfl() -> "type[object]":

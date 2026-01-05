@@ -4,6 +4,7 @@ import asyncio
 
 import pytest
 import torch
+
 from byzpy.engine.graph.graph import ComputationGraph, GraphNode, graph_input
 from byzpy.engine.graph.operator import Operator
 from byzpy.engine.graph.pool import ActorPoolConfig
@@ -56,9 +57,7 @@ def create_simple_graph() -> ComputationGraph:
 def create_add_graph() -> ComputationGraph:
     """Create a graph that adds two inputs."""
     op = _AddOp()
-    node = GraphNode(
-        name="sum", op=op, inputs={"lhs": graph_input("a"), "rhs": graph_input("b")}
-    )
+    node = GraphNode(name="sum", op=op, inputs={"lhs": graph_input("a"), "rhs": graph_input("b")})
     return ComputationGraph(nodes=[node], outputs=["sum"])
 
 

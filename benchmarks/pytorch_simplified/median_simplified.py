@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Sequence
 
 import torch
+
 from byzpy import OperatorExecutor, run_operator
 from byzpy.aggregators.coordinate_wise.median import CoordinateWiseMedian
 from byzpy.engine.graph.pool import ActorPoolConfig
@@ -51,12 +52,8 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Benchmark Coordinate-wise Median using simplified API."
     )
-    parser.add_argument(
-        "--num-grads", type=int, default=64, help="Number of gradients (n)."
-    )
-    parser.add_argument(
-        "--grad-dim", type=int, default=65536, help="Gradient dimension."
-    )
+    parser.add_argument("--num-grads", type=int, default=64, help="Number of gradients (n).")
+    parser.add_argument("--grad-dim", type=int, default=65536, help="Gradient dimension.")
     parser.add_argument(
         "--chunk-size",
         type=int,
@@ -76,29 +73,18 @@ def _parse_args() -> argparse.Namespace:
         default="process",
         help="Actor backend (thread/process/...).",
     )
-    parser.add_argument(
-        "--warmup", type=int, default=1, help="Warm-up iterations per mode."
-    )
-    parser.add_argument(
-        "--repeat", type=int, default=3, help="Timed iterations per mode."
-    )
-    parser.add_argument(
-        "--seed", type=int, default=0, help="Random seed for synthetic gradients."
-    )
+    parser.add_argument("--warmup", type=int, default=1, help="Warm-up iterations per mode.")
+    parser.add_argument("--repeat", type=int, default=3, help="Timed iterations per mode.")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for synthetic gradients.")
     args = parser.parse_args()
     args.pool_workers = parse_worker_counts(args.pool_workers)
     return args
 
 
-def _make_gradients(
-    n: int, dim: int, seed: int, device: torch.device
-) -> list[torch.Tensor]:
+def _make_gradients(n: int, dim: int, seed: int, device: torch.device) -> list[torch.Tensor]:
     gen = torch.Generator(device=device)
     gen.manual_seed(seed)
-    return [
-        torch.randn(dim, generator=gen, device=device, dtype=torch.float32)
-        for _ in range(n)
-    ]
+    return [torch.randn(dim, generator=gen, device=device, dtype=torch.float32) for _ in range(n)]
 
 
 def _time_direct(
@@ -127,9 +113,7 @@ async def _time_run_operator(
     """Time run_operator() for single-threaded case (no pool overhead)."""
 
     async def _run_once():
-        await run_operator(
-            operator=operator, inputs={"gradients": grads}, pool_config=pool_config
-        )
+        await run_operator(operator=operator, inputs={"gradients": grads}, pool_config=pool_config)
 
     for _ in range(warmup):
         await _run_once()
@@ -162,16 +146,12 @@ async def _time_executor(
 
 
 async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
-    worker_counts = coerce_worker_counts(
-        getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS)
-    )
+    worker_counts = coerce_worker_counts(getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS))
     device = torch.device("cpu")
     grads = _make_gradients(args.num_grads, args.grad_dim, args.seed, device)
 
     aggregator = CoordinateWiseMedian(chunk_size=args.chunk_size)
-    direct_time = _time_direct(
-        aggregator, grads, iterations=args.repeat, warmup=args.warmup
-    )
+    direct_time = _time_direct(aggregator, grads, iterations=args.repeat, warmup=args.warmup)
 
     single_time = await _time_run_operator(
         aggregator,
@@ -195,17 +175,13 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
             iterations=args.repeat,
             warmup=args.warmup,
         )
-        runs.append(
-            BenchmarkRun(f"ActorPool x{workers} ({args.pool_backend})", pool_time)
-        )
+        runs.append(BenchmarkRun(f"ActorPool x{workers} ({args.pool_backend})", pool_time))
 
     return runs
 
 
 def _print_results(runs: Sequence[BenchmarkRun]) -> None:
-    baseline_run = next(
-        (run for run in runs if "Direct aggregate" in run.mode), runs[0]
-    )
+    baseline_run = next((run for run in runs if "Direct aggregate" in run.mode), runs[0])
     baseline = baseline_run.avg_seconds
     print("\nCoordinate-wise Median Benchmark (Simplified API)")
     print("-------------------------------------------------")

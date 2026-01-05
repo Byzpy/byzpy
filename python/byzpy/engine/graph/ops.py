@@ -16,9 +16,7 @@ class CallableOp(Operator):
 
     name = "callable"
 
-    def __init__(
-        self, fn: Callable[..., Any], *, input_mapping: Mapping[str, str]
-    ) -> None:
+    def __init__(self, fn: Callable[..., Any], *, input_mapping: Mapping[str, str]) -> None:
         self.fn = fn
         self.input_mapping = dict(input_mapping)
 
@@ -42,9 +40,7 @@ class RemoteCallableOp(Operator):
     name = "remote_callable"
     supports_subtasks = True
 
-    def __init__(
-        self, fn: Callable[..., Any], *, input_mapping: Mapping[str, str]
-    ) -> None:
+    def __init__(self, fn: Callable[..., Any], *, input_mapping: Mapping[str, str]) -> None:
         self.fn = fn
         self.input_mapping = dict(input_mapping)
 

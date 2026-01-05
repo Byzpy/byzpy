@@ -240,9 +240,11 @@ def _centered_clipping_chunk(
     c_tau: float,
     eps: float,
 ) -> int:
-    with open_tensor(grad_handle) as flat, open_tensor(vec_handle) as vec, open_tensor(
-        contrib_handle
-    ) as contribs:
+    with (
+        open_tensor(grad_handle) as flat,
+        open_tensor(vec_handle) as vec,
+        open_tensor(contrib_handle) as contribs,
+    ):
         data = np.array(flat, copy=False)
         vector = np.array(vec, copy=False)
         rows = data[start:end]

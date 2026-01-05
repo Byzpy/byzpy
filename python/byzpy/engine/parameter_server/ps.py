@@ -10,11 +10,7 @@ from ...aggregators import Aggregator
 from ...engine.graph.ops import make_single_operator_graph
 from ...engine.graph.pool import ActorPool
 from ...engine.graph.scheduler import NodeScheduler
-from ...engine.storage.shared_store import (
-    SharedTensorHandle,
-    cleanup_tensor,
-    register_tensor,
-)
+from ...engine.storage.shared_store import SharedTensorHandle, cleanup_tensor, register_tensor
 from ...pre_aggregators import PreAggregator
 from ..node.actors import ByzantineNodeActor, HonestNodeActor
 
@@ -88,9 +84,7 @@ class ParameterServer:
                 operator=self.agg,
                 input_keys=("gradients",),
             )
-            self.scheduler = NodeScheduler(
-                graph, pool=actor_pool, metadata=scheduler_metadata
-            )
+            self.scheduler = NodeScheduler(graph, pool=actor_pool, metadata=scheduler_metadata)
 
     async def _stream_honest(self) -> AsyncIterator[torch.Tensor]:
         coros = [h.honest_gradient_for_next_batch() for h in self.hon]
@@ -145,20 +139,14 @@ class ParameterServer:
 
         await asyncio.gather(
             *[n.apply_server_gradient(g) for n in self.hon]
-            + (
-                [n.apply_server_gradient(g) for n in self.byz]
-                if self.update_byz
-                else []
-            )
+            + ([n.apply_server_gradient(g) for n in self.byz] if self.update_byz else [])
         )
         return g
 
     async def shutdown(self):
         await asyncio.gather(*[n._ref._backend.close() for n in (self.hon + self.byz)])
 
-    def _register_shared_gradients(
-        self, grads: Sequence[torch.Tensor]
-    ) -> list[SharedTensorHandle]:
+    def _register_shared_gradients(self, grads: Sequence[torch.Tensor]) -> list[SharedTensorHandle]:
         handles: list[SharedTensorHandle] = []
         for grad in grads:
             arr = grad.detach().cpu().numpy()

@@ -1,4 +1,5 @@
 import torch
+
 from byzpy.attacks.mimic import MimicAttack
 from byzpy.engine.graph.operator import OpContext
 

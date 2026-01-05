@@ -93,9 +93,7 @@ class OperatorExecutor:
             node_name: Optional name for the graph node. Defaults to operator name.
         """
         if not isinstance(operator, Operator):
-            raise TypeError(
-                f"operator must be an Operator instance, got {type(operator)}"
-            )
+            raise TypeError(f"operator must be an Operator instance, got {type(operator)}")
 
         self.operator = operator
         self.pool_config = pool_config
@@ -197,22 +195,16 @@ class OperatorExecutor:
                 class _InputMappingOperator(Operator):
                     """Wrapper operator that maps input keys."""
 
-                    def __init__(
-                        self, wrapped_op: Operator, custom_key: str, op_key: str
-                    ):
+                    def __init__(self, wrapped_op: Operator, custom_key: str, op_key: str):
                         self.wrapped_op = wrapped_op
                         self.custom_key = custom_key
                         self.op_key = op_key
                         self.name = wrapped_op.name
                         self.supports_subtasks = wrapped_op.supports_subtasks
                         self.max_subtasks_inflight = wrapped_op.max_subtasks_inflight
-                        self.supports_barriered_subtasks = (
-                            wrapped_op.supports_barriered_subtasks
-                        )
+                        self.supports_barriered_subtasks = wrapped_op.supports_barriered_subtasks
 
-                    def compute(
-                        self, inputs: Mapping[str, Any], *, context: OpContext
-                    ) -> Any:
+                    def compute(self, inputs: Mapping[str, Any], *, context: OpContext) -> Any:
                         # Map custom key to operator's expected key
                         if self.custom_key not in inputs:
                             raise KeyError(f"Missing input key {self.custom_key!r}")
@@ -223,9 +215,7 @@ class OperatorExecutor:
                         self, inputs: Mapping[str, Any], *, context: OpContext
                     ) -> Iterable[Any]:
                         mapped_inputs = {self.op_key: inputs[self.custom_key]}
-                        return self.wrapped_op.create_subtasks(
-                            mapped_inputs, context=context
-                        )
+                        return self.wrapped_op.create_subtasks(mapped_inputs, context=context)
 
                     def reduce_subtasks(
                         self,

@@ -3,12 +3,8 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from byzpy.engine.graph.graph import (
-    ComputationGraph,
-    GraphInput,
-    GraphNode,
-    graph_input,
-)
+
+from byzpy.engine.graph.graph import ComputationGraph, GraphInput, GraphNode, graph_input
 from byzpy.engine.graph.operator import Operator
 from byzpy.engine.graph.scheduler import MessageAwareNodeScheduler
 

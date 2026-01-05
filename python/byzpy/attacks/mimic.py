@@ -5,6 +5,7 @@ from typing import Any, Iterable, List, Optional, Sequence
 import numpy as np
 import torch
 import torch.nn as nn
+
 from byzpy.aggregators._chunking import select_adaptive_chunk_size
 from byzpy.aggregators.coordinate_wise._tiling import flatten_gradients
 from byzpy.attacks.base import Attack

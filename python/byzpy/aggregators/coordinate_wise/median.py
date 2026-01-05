@@ -117,9 +117,7 @@ class CoordinateWiseMedian(Aggregator):
         features = flat.shape[1]
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
-        chunk = select_adaptive_chunk_size(
-            features, self.chunk_size, pool_size=pool_size
-        )
+        chunk = select_adaptive_chunk_size(features, self.chunk_size, pool_size=pool_size)
 
         def _iter_subtasks() -> Iterable[SubTask]:
             chunk_id = 0
@@ -141,9 +139,7 @@ class CoordinateWiseMedian(Aggregator):
 
         like = inputs[self.input_key][0]
         if self._flat_shape is None:
-            raise RuntimeError(
-                "CoordinateWiseMedian reduce_subtasks missing shape state."
-            )
+            raise RuntimeError("CoordinateWiseMedian reduce_subtasks missing shape state.")
         feature_dim = int(np.prod(self._flat_shape))
 
         try:
@@ -161,9 +157,7 @@ class CoordinateWiseMedian(Aggregator):
             self._flat_shape = None
 
 
-def _median_chunk(
-    handle: SharedTensorHandle, start: int, end: int
-) -> tuple[int, np.ndarray]:
+def _median_chunk(handle: SharedTensorHandle, start: int, end: int) -> tuple[int, np.ndarray]:
     with open_tensor(handle) as flat:
         view = np.array(flat, copy=False)
         chunk = view[:, start:end]

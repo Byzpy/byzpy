@@ -97,9 +97,7 @@ class GeometricMedian(Aggregator):
             den = be.sum(w, axis=0)
             z = num / den
 
-            delta = be.sqrt(
-                be.sum((z - z_prev) * (z - z_prev), axis=tuple(range(z.ndim)))
-            )
+            delta = be.sqrt(be.sum((z - z_prev) * (z - z_prev), axis=tuple(range(z.ndim))))
             if _to_float(delta) <= self.tol:
                 break
 

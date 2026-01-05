@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+
 from byzpy.engine.graph.operator import OpContext, Operator
 from byzpy.engine.graph.subtask import SubTask
 
@@ -42,9 +43,7 @@ class _ParallelOp(Operator):
     def create_subtasks(self, inputs, *, context):
         factor = inputs["factor"]
         return [
-            SubTask(
-                fn=_scale, args=(value,), kwargs={"factor": factor}, name=f"part-{idx}"
-            )
+            SubTask(fn=_scale, args=(value,), kwargs={"factor": factor}, name=f"part-{idx}")
             for idx, value in enumerate(inputs["parts"])
         ]
 
@@ -134,9 +133,7 @@ async def test_operator_run_uses_pool_for_subtasks():
     pool = _FakePool(size=2)
     ctx = OpContext(node_name="node")
 
-    out = await op.run(
-        {"parts": [1, 2, 3], "factor": 2, "offset": 5}, context=ctx, pool=pool
-    )
+    out = await op.run({"parts": [1, 2, 3], "factor": 2, "offset": 5}, context=ctx, pool=pool)
 
     assert out == 17
     assert pool.subtask_calls == 3
@@ -151,9 +148,7 @@ async def test_operator_run_falls_back_to_compute_when_no_parallelism():
     pool = _FakePool(size=1)
     ctx = OpContext(node_name="node")
 
-    out = await op.run(
-        {"parts": [1, 1], "factor": 3, "offset": 4}, context=ctx, pool=pool
-    )
+    out = await op.run({"parts": [1, 1], "factor": 3, "offset": 4}, context=ctx, pool=pool)
 
     assert out == 10
     assert op.compute_calls == 1
@@ -183,9 +178,7 @@ async def test_operator_run_supports_barriered_mode():
     pool = _FakePool(size=2)
     ctx = OpContext(node_name="node")
 
-    out = await op.run(
-        {"parts": [1, 3], "factor": 2, "rounds": 2}, context=ctx, pool=pool
-    )
+    out = await op.run({"parts": [1, 3], "factor": 2, "rounds": 2}, context=ctx, pool=pool)
 
     assert out == (1 + 3) * 2 * 2
     assert op.rounds == 2

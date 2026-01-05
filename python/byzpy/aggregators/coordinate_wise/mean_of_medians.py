@@ -96,9 +96,7 @@ class MeanOfMedians(Aggregator):
         features = flat.shape[1]
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
-        chunk = select_adaptive_chunk_size(
-            features, self.chunk_size, pool_size=pool_size
-        )
+        chunk = select_adaptive_chunk_size(features, self.chunk_size, pool_size=pool_size)
 
         def _iter() -> Iterable[SubTask]:
             chunk_id = 0

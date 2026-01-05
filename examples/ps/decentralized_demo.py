@@ -7,15 +7,14 @@ from __future__ import annotations
 import argparse
 
 import torch
+
 from byzpy.engine.parameter_server.runner import ParameterServerRunner
 from byzpy.engine.transport.local import LocalTransport
 from byzpy.engine.transport.tcp import TcpTransport
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Decentralized PS demo (runner-based)."
-    )
+    parser = argparse.ArgumentParser(description="Decentralized PS demo (runner-based).")
     parser.add_argument(
         "--transport",
         choices=["local", "tcp"],

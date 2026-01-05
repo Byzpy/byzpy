@@ -1,5 +1,6 @@
 import pytest
 import torch
+
 from byzpy.aggregators.geometric_wise.geometric_median import GeometricMedian
 from byzpy.engine.graph.operator import OpContext
 
@@ -40,10 +41,7 @@ def test_gm_torch_outlier_robust():
     agg = GeometricMedian(tol=1e-8, max_iter=512, init="median")
     out = agg.aggregate(grads)
     assert (
-        torch.norm(
-            out - torch.tensor([0.0, 0.0], dtype=out.dtype, device=out.device)
-        ).item()
-        < 0.2
+        torch.norm(out - torch.tensor([0.0, 0.0], dtype=out.dtype, device=out.device)).item() < 0.2
     )
 
 
@@ -61,9 +59,7 @@ async def test_gm_barriered_matches_direct():
     pool = _StubPool(size=4)
 
     direct = agg.aggregate(grads)
-    barriered = await agg.run_barriered_subtasks(
-        {"gradients": grads}, context=ctx, pool=pool
-    )
+    barriered = await agg.run_barriered_subtasks({"gradients": grads}, context=ctx, pool=pool)
 
     assert torch.allclose(barriered, direct, atol=1e-6)
     assert pool.calls > 0

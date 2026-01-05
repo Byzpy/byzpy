@@ -139,11 +139,7 @@ class ARC(PreAggregator):
     def reduce_subtasks(self, partials, inputs, *, context):  # type: ignore[override]
         if not partials:
             return super().compute(inputs, context=context)
-        if (
-            self._handle is None
-            or self._flat_shape is None
-            or self._like_template is None
-        ):
+        if self._handle is None or self._flat_shape is None or self._like_template is None:
             raise RuntimeError("ARC missing state for reduction.")
 
         try:

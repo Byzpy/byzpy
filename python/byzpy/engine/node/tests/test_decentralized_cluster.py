@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+
 from byzpy.engine.graph.pool import ActorPoolConfig
 from byzpy.engine.node.application import NodeApplication
 from byzpy.engine.node.cluster import DecentralizedCluster

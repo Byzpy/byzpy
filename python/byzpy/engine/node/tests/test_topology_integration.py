@@ -3,6 +3,7 @@
 import asyncio
 
 import pytest
+
 from byzpy.engine.graph.pool import ActorPoolConfig
 
 
@@ -70,9 +71,7 @@ async def test_decentralizednode_send_to_neighbor():
     apps = [make_app(f"app-{i}") for i in range(3)]
 
     nodes = [
-        DecentralizedNode(
-            node_id=i, application=apps[i], context=contexts[i], topology=topology
-        )
+        DecentralizedNode(node_id=i, application=apps[i], context=contexts[i], topology=topology)
         for i in range(3)
     ]
 
@@ -139,9 +138,7 @@ async def test_decentralizednode_broadcast_message():
     apps = [make_app(f"app-{i}") for i in range(4)]
 
     nodes = [
-        DecentralizedNode(
-            node_id=i, application=apps[i], context=contexts[i], topology=topology
-        )
+        DecentralizedNode(node_id=i, application=apps[i], context=contexts[i], topology=topology)
         for i in range(4)
     ]
 
@@ -188,9 +185,7 @@ async def test_decentralizednode_multicast_message():
     apps = [make_app(f"app-{i}") for i in range(4)]
 
     nodes = [
-        DecentralizedNode(
-            node_id=i, application=apps[i], context=contexts[i], topology=topology
-        )
+        DecentralizedNode(node_id=i, application=apps[i], context=contexts[i], topology=topology)
         for i in range(4)
     ]
 
@@ -361,9 +356,7 @@ async def test_decentralizedcluster_node_sends_message():
 
     # Send from node0 to node1 via the node's send_message
     node0 = cluster.get_node("node0")
-    await node0.send_message(
-        to_node_id="node1", message_type="test_msg", payload={"value": 42}
-    )
+    await node0.send_message(to_node_id="node1", message_type="test_msg", payload={"value": 42})
 
     await asyncio.sleep(0.5)
 
@@ -471,9 +464,7 @@ async def test_decentralizedcluster_cross_process_topology_enforcement():
 
     # Node0 sends to neighbor node1 (should succeed)
     node0 = cluster.get_node("node0")
-    await node0.send_message(
-        to_node_id="node1", message_type="gradient", payload={"v": 1}
-    )
+    await node0.send_message(to_node_id="node1", message_type="gradient", payload={"v": 1})
 
     await asyncio.sleep(0.5)
 
@@ -680,9 +671,7 @@ async def test_topology_gradient_exchange_ring():
     # Register handlers BEFORE start_all (per test plan)
     for i in range(4):
         app = make_app(f"app-{i}")
-        node = await cluster.add_node(
-            node_id=f"node{i}", application=app, topology=topology
-        )
+        node = await cluster.add_node(node_id=f"node{i}", application=app, topology=topology)
 
         # Capture i in closure properly using a factory function
         def make_handler(nid):
@@ -731,9 +720,7 @@ async def test_topology_aggregation_from_in_neighbors():
     apps = [make_app(f"app-{i}") for i in range(4)]
 
     nodes = [
-        DecentralizedNode(
-            node_id=i, application=apps[i], context=contexts[i], topology=topology
-        )
+        DecentralizedNode(node_id=i, application=apps[i], context=contexts[i], topology=topology)
         for i in range(4)
     ]
 
@@ -759,6 +746,7 @@ async def test_topology_aggregation_from_in_neighbors():
 async def test_topology_ring_p2p_training_round():
     """Verify complete P2P training round with ring topology and aggregation."""
     import torch
+
     from byzpy.engine.node.cluster import DecentralizedCluster
     from byzpy.engine.peer_to_peer.topology import Topology
 
@@ -803,9 +791,7 @@ async def test_topology_ring_p2p_training_round():
         assert len(node_states[node_id]["received"]) == 2
 
         # Aggregate: mean of local + received
-        all_grads = [node_states[node_id]["local_grad"]] + node_states[node_id][
-            "received"
-        ]
+        all_grads = [node_states[node_id]["local_grad"]] + node_states[node_id]["received"]
         aggregated = torch.stack(all_grads).mean(dim=0)
         assert aggregated.shape == (5,)
 
@@ -865,6 +851,7 @@ async def test_topology_complete_all_to_all():
 async def test_ring_p2p_training_simulation():
     """End-to-end test: Ring topology P2P gradient exchange."""
     import torch
+
     from byzpy.engine.node.cluster import DecentralizedCluster
     from byzpy.engine.peer_to_peer.topology import Topology
 
@@ -875,9 +862,7 @@ async def test_ring_p2p_training_simulation():
     cluster = DecentralizedCluster()
 
     # Track state per node
-    node_states = {
-        f"node{i}": {"gradients": [], "aggregated": None} for i in range(n_nodes)
-    }
+    node_states = {f"node{i}": {"gradients": [], "aggregated": None} for i in range(n_nodes)}
 
     for i in range(n_nodes):
         app = make_app(f"node-{i}")
@@ -914,9 +899,7 @@ async def test_ring_p2p_training_simulation():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(
-    reason="Can run as standalone test, but not as part of the test suite"
-)
+@pytest.mark.skip(reason="Can run as standalone test, but not as part of the test suite")
 async def test_complete_topology_consensus():
     """End-to-end test: Complete topology achieves consensus value."""
     from byzpy.engine.node.cluster import DecentralizedCluster
@@ -934,9 +917,7 @@ async def test_complete_topology_consensus():
     # Register handlers BEFORE start_all (per test plan)
     for i in range(n_nodes):
         app = make_app(f"node-{i}")
-        node = await cluster.add_node(
-            node_id=f"node{i}", application=app, topology=topology
-        )
+        node = await cluster.add_node(node_id=f"node{i}", application=app, topology=topology)
 
         # Capture i in closure properly using a factory function
         def make_handler(nid):
@@ -962,9 +943,7 @@ async def test_complete_topology_consensus():
     for node_id in values_received:
         assert len(values_received[node_id]) == n_nodes - 1
         # Received values are from all other nodes
-        expected_values = [
-            initial_values[nid] for nid in initial_values if nid != node_id
-        ]
+        expected_values = [initial_values[nid] for nid in initial_values if nid != node_id]
         assert sorted(values_received[node_id]) == sorted(expected_values)
 
     await cluster.shutdown_all()

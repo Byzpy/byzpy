@@ -60,9 +60,7 @@ def _train_byzfl(
     data_root: str,
 ) -> BenchmarkRun:
     """Train using ByzFL ParameterServer with MultiKrum."""
-    Client, Server, ByzantineClient, DataDistributor, set_random_seed, Tensor = (
-        _require_byzfl()
-    )
+    Client, Server, ByzantineClient, DataDistributor, set_random_seed, Tensor = _require_byzfl()
 
     set_random_seed(seed)
 
@@ -70,9 +68,7 @@ def _train_byzfl(
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
     )
-    train_dataset = datasets.MNIST(
-        root=data_root, train=True, download=True, transform=transform
-    )
+    train_dataset = datasets.MNIST(root=data_root, train=True, download=True, transform=transform)
     train_dataset.targets = Tensor(train_dataset.targets).long()
     train_loader = data.DataLoader(train_dataset, shuffle=True, batch_size=batch_size)
 
@@ -111,9 +107,7 @@ def _train_byzfl(
     ]
 
     # Prepare test dataset
-    test_dataset = datasets.MNIST(
-        root=data_root, train=False, download=True, transform=transform
-    )
+    test_dataset = datasets.MNIST(root=data_root, train=False, download=True, transform=transform)
     test_dataset.targets = Tensor(test_dataset.targets).long()
     test_loader = data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
@@ -154,9 +148,7 @@ def _train_byzfl(
             client.compute_gradients()
 
         # Aggregate honest gradients
-        honest_gradients = [
-            client.get_flat_gradients_with_momentum() for client in honest_clients
-        ]
+        honest_gradients = [client.get_flat_gradients_with_momentum() for client in honest_clients]
 
         # Apply Byzantine attack
         byz_vector = byz_client.apply_attack(honest_gradients)
@@ -190,26 +182,14 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Benchmark ByzFL ParameterServer training with MultiKrum aggregator."
     )
-    parser.add_argument(
-        "--num-honest", type=int, default=10, help="Number of honest clients."
-    )
-    parser.add_argument(
-        "--num-byz", type=int, default=3, help="Number of Byzantine clients."
-    )
-    parser.add_argument(
-        "--rounds", type=int, default=50, help="Number of training rounds."
-    )
-    parser.add_argument(
-        "--batch-size", type=int, default=64, help="Batch size per client."
-    )
+    parser.add_argument("--num-honest", type=int, default=10, help="Number of honest clients.")
+    parser.add_argument("--num-byz", type=int, default=3, help="Number of Byzantine clients.")
+    parser.add_argument("--rounds", type=int, default=50, help="Number of training rounds.")
+    parser.add_argument("--batch-size", type=int, default=64, help="Batch size per client.")
     parser.add_argument("--lr", type=float, default=0.1, help="Learning rate.")
-    parser.add_argument(
-        "--f", type=int, default=3, help="MultiKrum fault tolerance parameter."
-    )
+    parser.add_argument("--f", type=int, default=3, help="MultiKrum fault tolerance parameter.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed.")
-    parser.add_argument(
-        "--data-root", type=str, default="./data", help="MNIST data directory."
-    )
+    parser.add_argument("--data-root", type=str, default="./data", help="MNIST data directory.")
     return parser.parse_args()
 
 

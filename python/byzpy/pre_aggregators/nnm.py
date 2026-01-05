@@ -82,11 +82,7 @@ class NearestNeighborMixing(PreAggregator):
     def _pre_aggregate_torch(self, xs: Sequence[torch.Tensor], *, k: int) -> List[Any]:
         X = torch.stack(xs, dim=0)
         flat = X.reshape(len(xs), -1)
-        work_dtype = (
-            torch.float32
-            if flat.dtype in (torch.float16, torch.bfloat16)
-            else flat.dtype
-        )
+        work_dtype = torch.float32 if flat.dtype in (torch.float16, torch.bfloat16) else flat.dtype
         flat = flat.to(dtype=work_dtype)
         norms = torch.sum(flat * flat, dim=1, keepdim=True)
         D2 = norms + norms.T - 2.0 * (flat @ flat.T)
@@ -121,9 +117,7 @@ class NearestNeighborMixing(PreAggregator):
         dim = data.shape[1]
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
-        chunk = select_adaptive_chunk_size(
-            dim, self.feature_chunk_size, pool_size=pool_size
-        )
+        chunk = select_adaptive_chunk_size(dim, self.feature_chunk_size, pool_size=pool_size)
 
         def _iter() -> Iterable[SubTask]:
             chunk_id = 0
@@ -185,9 +179,7 @@ class NearestNeighborMixing(PreAggregator):
             self._n = None
 
 
-def _nnm_partial_distances(
-    handle: SharedTensorHandle, start: int, end: int
-) -> np.ndarray:
+def _nnm_partial_distances(handle: SharedTensorHandle, start: int, end: int) -> np.ndarray:
     with open_tensor(handle) as flat:
         chunk = flat[:, start:end]
         norms = np.sum(chunk * chunk, axis=1, keepdims=True)

@@ -25,18 +25,12 @@ class BenchmarkRun:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark ByzFL's Meamed aggregator.")
-    parser.add_argument(
-        "--num-grads", type=int, default=64, help="Number of gradients (n)."
-    )
-    parser.add_argument(
-        "--grad-dim", type=int, default=65536, help="Gradient dimension."
-    )
+    parser.add_argument("--num-grads", type=int, default=64, help="Number of gradients (n).")
+    parser.add_argument("--grad-dim", type=int, default=65536, help="Gradient dimension.")
     parser.add_argument("--f", type=int, default=8, help="Trim parameter (drop f).")
     parser.add_argument("--warmup", type=int, default=0, help="Warm-up iterations.")
     parser.add_argument("--repeat", type=int, default=2, help="Timed iterations.")
-    parser.add_argument(
-        "--seed", type=int, default=0, help="Random seed for synthetic gradients."
-    )
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for synthetic gradients.")
     parser.add_argument(
         "--timeout",
         type=float,
@@ -51,15 +45,10 @@ def _maybe_sync(device: torch.device) -> None:
         torch.cuda.synchronize(device)
 
 
-def _make_gradients(
-    n: int, dim: int, seed: int, device: torch.device
-) -> list[torch.Tensor]:
+def _make_gradients(n: int, dim: int, seed: int, device: torch.device) -> list[torch.Tensor]:
     gen = torch.Generator(device=device)
     gen.manual_seed(seed)
-    return [
-        torch.randn(dim, generator=gen, device=device, dtype=torch.float32)
-        for _ in range(n)
-    ]
+    return [torch.randn(dim, generator=gen, device=device, dtype=torch.float32) for _ in range(n)]
 
 
 def _require_byzfl() -> "type[object]":

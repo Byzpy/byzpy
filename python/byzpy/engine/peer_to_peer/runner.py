@@ -42,9 +42,7 @@ class _PicklableActorCall:
         actor = actor_registry.get(self.actor_key) if actor_registry else None
         if actor is None:
             raise RuntimeError(f"Actor {self.actor_key} not found in registry")
-        return await actor.p2p_broadcast_vector(
-            neighbor_vectors=neighbor_vectors, like=like
-        )
+        return await actor.p2p_broadcast_vector(neighbor_vectors=neighbor_vectors, like=like)
 
 
 _NODE_OBJECT_REGISTRY: Dict[str, Any] = {}
@@ -80,10 +78,7 @@ def _create_honest_node_application(
     # Half-step pipeline - import registry inside function to avoid closure capture
     async def half_step(lr: float):
         # Import registry inside function (not captured in closure)
-        from byzpy.engine.peer_to_peer.runner import (
-            _ACTOR_REGISTRY,
-            _NODE_OBJECT_REGISTRY,
-        )
+        from byzpy.engine.peer_to_peer.runner import _ACTOR_REGISTRY, _NODE_OBJECT_REGISTRY
 
         # Try node object registry (works in subprocess after unpickling)
         node_obj = _NODE_OBJECT_REGISTRY.get(node_key)
@@ -153,18 +148,13 @@ def _create_byzantine_node_application(
         like: Optional[torch.Tensor] = None,
     ):
         # Import registry inside function (not captured in closure)
-        from byzpy.engine.peer_to_peer.runner import (
-            _ACTOR_REGISTRY,
-            _NODE_OBJECT_REGISTRY,
-        )
+        from byzpy.engine.peer_to_peer.runner import _ACTOR_REGISTRY, _NODE_OBJECT_REGISTRY
 
         # Try node object registry (works in subprocess after unpickling)
         node_obj = _NODE_OBJECT_REGISTRY.get(node_key)
         if node_obj is not None:
             # p2p_broadcast_vector is synchronous, returns Tensor directly
-            result = node_obj.p2p_broadcast_vector(
-                neighbor_vectors=neighbor_vectors, like=like
-            )
+            result = node_obj.p2p_broadcast_vector(neighbor_vectors=neighbor_vectors, like=like)
             # If it's a coroutine (from ActorRef), await it; otherwise return directly
             if hasattr(result, "__await__"):
                 return await result
@@ -257,9 +247,7 @@ class DecentralizedPeerToPeer:
 
                     return on_gradient
 
-                node.register_message_handler(
-                    "gradient", make_gradient_handler(node_id, node)
-                )
+                node.register_message_handler("gradient", make_gradient_handler(node_id, node))
             else:
                 # Byzantine node
                 byz_idx = idx - len(self.honest)
@@ -284,9 +272,7 @@ class DecentralizedPeerToPeer:
 
                     return on_gradient
 
-                node.register_message_handler(
-                    "gradient", make_byz_handler(node_id, node)
-                )
+                node.register_message_handler("gradient", make_byz_handler(node_id, node))
 
         # Start all nodes
         await self._cluster.start_all()
@@ -369,17 +355,13 @@ class DecentralizedPeerToPeer:
                         actor_ref = _ACTOR_REGISTRY.get(node_key)
                         if actor_ref is not None:
                             malicious = await actor_ref.p2p_broadcast_vector(
-                                neighbor_vectors=(
-                                    neighbor_vecs if neighbor_vecs else None
-                                ),
+                                neighbor_vectors=(neighbor_vecs if neighbor_vecs else None),
                                 like=template,
                             )
                         else:
                             # Fallback: use actor directly
                             malicious = await actor.p2p_broadcast_vector(
-                                neighbor_vectors=(
-                                    neighbor_vecs if neighbor_vecs else None
-                                ),
+                                neighbor_vectors=(neighbor_vecs if neighbor_vecs else None),
                                 like=template,
                             )
                     await node.broadcast_message("gradient", {"vector": malicious})

@@ -57,16 +57,12 @@ def _worker(conn):
 
                 elif op == "call":
                     if obj is None:
-                        raise RuntimeError(
-                            "ProcessActor not initialized; call construct() first."
-                        )
+                        raise RuntimeError("ProcessActor not initialized; call construct() first.")
                     fn = getattr(obj, msg["method"])
                     args = unwrap_payload(msg["args"])
                     kwargs = unwrap_payload(msg["kwargs"])
                     res = fn(*args, **kwargs)
-                    conn.send(
-                        {"ok": True, "id": msg["id"], "payload": wrap_payload(res)}
-                    )
+                    conn.send({"ok": True, "id": msg["id"], "payload": wrap_payload(res)})
 
                 elif op == "chan_open":
                     _ensure_q(msg["name"])
@@ -83,9 +79,7 @@ def _worker(conn):
                     timeout = msg.get("timeout", None)
                     q = _ensure_q(name)
                     try:
-                        item = (
-                            q.get(timeout=timeout) if timeout is not None else q.get()
-                        )
+                        item = q.get(timeout=timeout) if timeout is not None else q.get()
                     except qmod.Empty:
                         payload = None
                     else:
@@ -132,9 +126,7 @@ class ProcessActorBackend(ActorBackend):
         if self._loop is None:
             self._loop = asyncio.get_running_loop()
 
-    async def construct(
-        self, cls_or_factory: Any, *, args: tuple, kwargs: dict
-    ) -> None:
+    async def construct(self, cls_or_factory: Any, *, args: tuple, kwargs: dict) -> None:
         blob = cloudpickle.dumps(cls_or_factory)
         req = {
             "op": "construct",
@@ -216,16 +208,12 @@ class ProcessActorBackend(ActorBackend):
             peer = channel_router.resolve("thread", to_ep.actor_id)
             if peer is None:
                 raise RuntimeError(f"no local thread actor {to_ep.actor_id}")
-            await peer.chan_put(
-                from_ep=from_ep, to_ep=to_ep, name=name, payload=payload
-            )
+            await peer.chan_put(from_ep=from_ep, to_ep=to_ep, name=name, payload=payload)
             return
 
         if to_ep.scheme == "ucx":
             if not ucx.have_ucx():
-                raise RuntimeError(
-                    "UCX requested but UCX is not available (need ucxx or ucp)"
-                )
+                raise RuntimeError("UCX requested but UCX is not available (need ucxx or ucp)")
             host, port_str = to_ep.address.rsplit(":", 1)
 
             async def _op(e):
@@ -261,9 +249,7 @@ class ProcessActorBackend(ActorBackend):
             peer = channel_router.resolve("gpu", to_ep.actor_id)
             if peer is None:
                 raise RuntimeError(f"no local gpu actor {to_ep.actor_id}")
-            await peer.chan_put(
-                from_ep=from_ep, to_ep=to_ep, name=name, payload=payload
-            )
+            await peer.chan_put(from_ep=from_ep, to_ep=to_ep, name=name, payload=payload)
             return
 
         raise RuntimeError(f"ProcessActorBackend cannot route to {to_ep.scheme!r}")
@@ -282,9 +268,7 @@ class ProcessActorBackend(ActorBackend):
 
         if ep.scheme == "ucx":
             if not ucx.have_ucx():
-                raise RuntimeError(
-                    "UCX requested but UCX is not available (need ucxx or ucp)"
-                )
+                raise RuntimeError("UCX requested but UCX is not available (need ucxx or ucp)")
             host, port_str = ep.address.rsplit(":", 1)
 
             async def _op(e):
