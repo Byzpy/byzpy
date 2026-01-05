@@ -47,11 +47,8 @@ try:
         parse_worker_counts,
     )
 except ImportError:
-    from _worker_args import (  # type: ignore
-        DEFAULT_WORKER_COUNTS,
-        coerce_worker_counts,
-        parse_worker_counts,
-    )
+    from _worker_args import DEFAULT_WORKER_COUNTS  # type: ignore
+    from _worker_args import coerce_worker_counts, parse_worker_counts
 
 
 @dataclass(frozen=True)
