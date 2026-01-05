@@ -1040,6 +1040,9 @@ class MeshRemoteContext(NodeContext):
         self._peer_clients.clear()
         self._inbound_connections.clear()
         self._inbound_writers.clear()
+        self._local_server = None
+        self._serve_task = None
+        self._monitor_task = None
         self._node = None
 
     def get_connected_peers(self) -> list:

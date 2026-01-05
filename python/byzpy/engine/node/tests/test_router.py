@@ -270,6 +270,64 @@ async def test_messagerouter_route_broadcast_complete_topology():
         assert msg["type"] == "global_update"
 
 
+@pytest.mark.asyncio
+async def test_messagerouter_route_broadcast_resilient_to_failures():
+    """Verify route_broadcast() continues sending to remaining neighbors even if some fail."""
+    from byzpy.engine.node.context import NodeContext
+    from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
+
+    topology = Topology.ring(3, k=1)  # Node 0 neighbors: 1, 2
+
+    # Create a mock context that fails for node 1 but succeeds for node 2
+    class FailingContext(NodeContext):
+        """Context that fails for specific node IDs."""
+
+        def __init__(self, fail_for_nodes):
+            self.fail_for_nodes = fail_for_nodes
+            self.successful_sends = []
+            self.failed_sends = []
+
+        async def start(self, node):
+            pass
+
+        async def send_message(self, to_node_id: str, message_type: str, payload):
+            to_id_str = str(to_node_id)
+            if to_id_str in self.fail_for_nodes:
+                self.failed_sends.append(to_id_str)
+                raise RuntimeError(f"Simulated failure for node {to_id_str}")
+            self.successful_sends.append(to_id_str)
+
+        async def receive_messages(self):
+            while False:
+                yield  # Never yield
+
+        async def shutdown(self):
+            pass
+
+    failing_context = FailingContext(fail_for_nodes=["1"])
+
+    router = MessageRouter(topology=topology, node_id=0)
+
+    # Broadcast should continue even if node 1 fails
+    # Should not raise exception
+    await router.route_broadcast(
+        message_type="test",
+        payload={"data": 42},
+        context=failing_context,
+    )
+
+    # Verify that node 2 was attempted (and succeeded)
+    assert "2" in failing_context.successful_sends
+
+    # Verify that node 1 failed but didn't stop the broadcast
+    assert "1" in failing_context.failed_sends
+
+    # Both nodes should have been attempted
+    assert len(failing_context.successful_sends) == 1
+    assert len(failing_context.failed_sends) == 1
+
+
 # 2.3 Multicast Routing
 
 
