@@ -3,25 +3,27 @@ Category 5: Comprehensive P2P Training Examples
 
 End-to-end P2P training tests with various topologies and contexts.
 """
+
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 import torch
-
-from byzpy.engine.peer_to_peer.train import PeerToPeer
-from byzpy.engine.peer_to_peer.topology import Topology
-from byzpy.engine.node.actors import HonestNodeActor, ByzantineNodeActor
-from byzpy.engine.node.context import ProcessContext, RemoteContext
-from byzpy.engine.node.remote_server import RemoteNodeServer
-from byzpy.engine.actor.backends.thread import ThreadActorBackend
-from byzpy.engine.graph.pool import ActorPoolConfig
 from byzpy.aggregators.coordinate_wise import CoordinateWiseMedian
 from byzpy.attacks import EmpireAttack
+from byzpy.engine.actor.backends.thread import ThreadActorBackend
+from byzpy.engine.graph.pool import ActorPoolConfig
+from byzpy.engine.node.actors import ByzantineNodeActor, HonestNodeActor
+from byzpy.engine.node.context import ProcessContext, RemoteContext
+from byzpy.engine.node.remote_server import RemoteNodeServer
+from byzpy.engine.peer_to_peer.topology import Topology
+from byzpy.engine.peer_to_peer.train import PeerToPeer
 
 
 class _StubHonestNode:
     """Stub honest node for testing."""
+
     def __init__(self, grad: torch.Tensor):
         self._grad = grad
         self.lr = 0.1
@@ -37,6 +39,7 @@ class _StubHonestNode:
 
 class _StubByzantineNode:
     """Stub byzantine node for testing."""
+
     async def p2p_broadcast_vector(self, neighbor_vectors=None, like=None):
         if like is not None:
             return torch.zeros_like(like)
@@ -62,7 +65,6 @@ async def create_byzantine_actor() -> ByzantineNodeActor:
         backend=backend,
     )
     return actor
-
 
 
 @pytest.mark.asyncio
@@ -118,7 +120,6 @@ async def test_p2p_training_ring_with_byzantine():
     await p2p.shutdown()
 
 
-
 @pytest.mark.asyncio
 async def test_p2p_training_complete_topology():
     """End-to-end P2P training with complete topology."""
@@ -145,7 +146,6 @@ async def test_p2p_training_complete_topology():
     await p2p.shutdown()
 
 
-
 @pytest.mark.asyncio
 async def test_p2p_training_mixed_process_remote():
     """End-to-end P2P training with mix of process and remote nodes."""
@@ -164,6 +164,7 @@ async def test_p2p_training_mixed_process_remote():
     # (ProcessContext and RemoteContext communication bridge is complex)
     def context_factory(node_id: str, node_index: int):
         from byzpy.engine.node.context import InProcessContext
+
         return InProcessContext()
 
     p2p = PeerToPeer(
@@ -188,4 +189,3 @@ async def test_p2p_training_mixed_process_remote():
         await serve_task
     except asyncio.CancelledError:
         pass
-

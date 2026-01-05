@@ -1,5 +1,4 @@
 import torch
-
 from byzpy.attacks.inf import InfAttack
 from byzpy.engine.graph.operator import OpContext
 
@@ -20,6 +19,8 @@ def test_inf_chunk_matches_direct():
     ctx = OpContext(node_name="inf", metadata={"pool_size": 4})
     subtasks = list(chunked.create_subtasks(inputs, context=ctx))
     partials = [t.fn(*t.args, **t.kwargs) for t in subtasks]
-    reduced = chunked.reduce_subtasks(partials, inputs, context=OpContext(node_name="inf", metadata={}))
+    reduced = chunked.reduce_subtasks(
+        partials, inputs, context=OpContext(node_name="inf", metadata={})
+    )
 
     assert torch.allclose(direct, reduced)

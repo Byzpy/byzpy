@@ -17,6 +17,29 @@ python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e python[dev]
 pip install -r docs/requirements.txt   # if you plan to touch docs
+pip install pre-commit               # for code formatting hooks
+pre-commit install                   # install git hooks
+```
+
+### Pre-commit Hooks
+
+We use [pre-commit](https://pre-commit.com/) to automatically format and lint code before commits. The hooks will:
+
+- **Format code** with [Black](https://github.com/psf/black) (100 character line length)
+- **Sort imports** with [isort](https://pycqa.github.io/isort/) (Black-compatible profile)
+- **Lint code** with [flake8](https://flake8.pycqa.org/)
+- **Check files** for trailing whitespace, merge conflicts, large files, and more
+
+The hooks run automatically on `git commit`. To manually run them on all files:
+
+```bash
+pre-commit run --all-files
+```
+
+To skip hooks for a single commit (not recommended):
+
+```bash
+git commit --no-verify
 ```
 
 ## Making Changes
@@ -26,6 +49,7 @@ pip install -r docs/requirements.txt   # if you plan to touch docs
    git checkout -b feature/my-awesome-change
    ```
 2. **Keep the code tidy**
+   - The pre-commit hooks will automatically format your code with Black and isort.
    - Match existing formatting; we target 100-char lines.
    - Prefer typed Python (mypy/pyright friendly signatures).
 3. **Update docs/tests**

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import torch
-
 from byzpy.aggregators.norm_wise.caf import CAF
 from byzpy.engine.graph.operator import OpContext
 

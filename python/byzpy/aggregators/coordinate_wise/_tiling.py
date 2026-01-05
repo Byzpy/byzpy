@@ -8,6 +8,7 @@ from ...engine.storage.shared_store import SharedTensorHandle, open_tensor
 
 try:  # optional torch dependency
     import torch
+
     _HAS_TORCH = True
 except Exception:  # pragma: no cover
     torch = None  # type: ignore

@@ -1,4 +1,5 @@
 import asyncio
+
 from byzpy.engine.actor.backends.gpu import start_ucx_actor_server
 
 if __name__ == "__main__":

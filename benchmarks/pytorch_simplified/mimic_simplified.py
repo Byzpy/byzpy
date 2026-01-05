@@ -11,21 +11,33 @@ from dataclasses import dataclass
 from typing import Sequence
 
 import torch
-
-from byzpy import run_operator, OperatorExecutor
+from byzpy import OperatorExecutor, run_operator
 from byzpy.attacks.mimic import MimicAttack
 from byzpy.engine.graph.pool import ActorPoolConfig
 
 try:
-    from benchmarks.pytorch._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+    from benchmarks.pytorch._worker_args import (
+        DEFAULT_WORKER_COUNTS,
+        coerce_worker_counts,
+        parse_worker_counts,
+    )
 except ImportError:
     try:
-        from ..pytorch._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+        from ..pytorch._worker_args import (
+            DEFAULT_WORKER_COUNTS,
+            coerce_worker_counts,
+            parse_worker_counts,
+        )
     except ImportError:
         import sys
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).parent.parent / "pytorch"))
-        from _worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts  # type: ignore
+        from _worker_args import (  # type: ignore
+            DEFAULT_WORKER_COUNTS,
+            coerce_worker_counts,
+            parse_worker_counts,
+        )
 
 
 @dataclass(frozen=True)
@@ -39,11 +51,17 @@ class BenchmarkRun:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Benchmark Mimic attack using simplified API.")
+    parser = argparse.ArgumentParser(
+        description="Benchmark Mimic attack using simplified API."
+    )
     parser.add_argument("--num-grads", type=int, default=64, help="Honest gradients")
-    parser.add_argument("--grad-dim", type=int, default=65536, help="Gradient dimension")
+    parser.add_argument(
+        "--grad-dim", type=int, default=65536, help="Gradient dimension"
+    )
     parser.add_argument("--epsilon", type=int, default=0, help="Index to mimic")
-    parser.add_argument("--chunk-size", type=int, default=16384, help="Features per subtask")
+    parser.add_argument(
+        "--chunk-size", type=int, default=16384, help="Features per subtask"
+    )
     default_workers = ",".join(str(count) for count in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
         "--pool-workers",
@@ -66,7 +84,9 @@ def _make_grads(n: int, dim: int, seed: int) -> list[torch.Tensor]:
     return [torch.randn(dim, generator=gen) for _ in range(n)]
 
 
-def _time_direct(attack: MimicAttack, grads: Sequence[torch.Tensor], *, iterations: int, warmup: int) -> float:
+def _time_direct(
+    attack: MimicAttack, grads: Sequence[torch.Tensor], *, iterations: int, warmup: int
+) -> float:
     for _ in range(warmup):
         attack.apply(honest_grads=grads)
     start = time.perf_counter()
@@ -84,8 +104,14 @@ async def _time_run_operator(
     warmup: int,
 ) -> float:
     """Time run_operator() for single-threaded case (no pool overhead)."""
+
     async def _run_once():
-        await run_operator(operator=operator, inputs={"honest_grads": grads}, pool_config=pool_config, input_keys=("honest_grads",))
+        await run_operator(
+            operator=operator,
+            inputs={"honest_grads": grads},
+            pool_config=pool_config,
+            input_keys=("honest_grads",),
+        )
 
     for _ in range(warmup):
         await _run_once()
@@ -105,12 +131,13 @@ async def _time_executor(
     warmup: int,
 ) -> float:
     """Time OperatorExecutor with pool (reuses pool across iterations)."""
-    executor = OperatorExecutor(operator, pool_config=pool_config, input_keys=("honest_grads",))
+    executor = OperatorExecutor(
+        operator, pool_config=pool_config, input_keys=("honest_grads",)
+    )
     async with executor:
 
         for _ in range(warmup):
             await executor.run({"honest_grads": grads})
-
 
         start = time.perf_counter()
         for _ in range(iterations):
@@ -119,12 +146,13 @@ async def _time_executor(
 
 
 async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
-    worker_counts = coerce_worker_counts(getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS))
+    worker_counts = coerce_worker_counts(
+        getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS)
+    )
     grads = _make_grads(args.num_grads, args.grad_dim, args.seed)
     attack = MimicAttack(epsilon=args.epsilon, chunk_size=args.chunk_size)
 
     direct = _time_direct(attack, grads, iterations=args.repeat, warmup=args.warmup)
-
 
     single = await _time_run_operator(
         attack,
@@ -138,7 +166,6 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
         BenchmarkRun("Direct attack (PyTorch)", direct),
         BenchmarkRun("Single-thread (run_operator)", single),
     ]
-
 
     for workers in worker_counts:
         pool_config = ActorPoolConfig(backend=args.pool_backend, count=workers)

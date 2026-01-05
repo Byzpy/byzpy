@@ -7,10 +7,10 @@ with its own scheduler loop, exchanging messages via in-process queues.
 """
 from __future__ import annotations
 
-from typing import List
-import torch
 import argparse
+from typing import List
 
+import torch
 from byzpy.engine.peer_to_peer.runner import DecentralizedPeerToPeer
 from byzpy.engine.peer_to_peer.topology import Topology
 from byzpy.engine.transport.local import LocalTransport
@@ -40,8 +40,15 @@ class ByzantineStub:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Decentralized P2P demo (runner-based).")
-    parser.add_argument("--transport", choices=["local", "tcp"], default="local", help="Transport backend for messaging.")
+    parser = argparse.ArgumentParser(
+        description="Decentralized P2P demo (runner-based)."
+    )
+    parser.add_argument(
+        "--transport",
+        choices=["local", "tcp"],
+        default="local",
+        help="Transport backend for messaging.",
+    )
     args = parser.parse_args()
 
     transport = LocalTransport() if args.transport == "local" else TcpTransport()

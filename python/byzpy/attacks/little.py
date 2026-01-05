@@ -1,21 +1,22 @@
 from __future__ import annotations
-from typing import Any, Optional, List, Iterable
+
 import math
+from typing import Any, Iterable, List, Optional
+
 import numpy as np
 import torch
 import torch.nn as nn
-
-from byzpy.attacks.base import Attack
 from byzpy.aggregators._chunking import select_adaptive_chunk_size
+from byzpy.aggregators.coordinate_wise._tiling import flatten_gradients
+from byzpy.attacks.base import Attack
 from byzpy.configs.backend import get_backend
 from byzpy.engine.graph.subtask import SubTask
 from byzpy.engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
-from byzpy.aggregators.coordinate_wise._tiling import flatten_gradients
 
 
 def _majority_needed(N: int, f: int) -> int:
@@ -29,30 +30,51 @@ def _ndtri(p: float) -> float:
     if not (0.0 <= p <= 1.0):
         raise ValueError("p must be in [0, 1]")
     p = min(max(p, eps), 1.0 - eps)
-    a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
-          1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00]
-    b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,
-          6.680131188771972e+01, -1.328068155288572e+01]
-    c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
-         -2.549732539343734e+00,  4.374664141464968e+00,  2.938163982698783e+00]
-    d = [ 7.784695709041462e-03,  3.224671290700398e-01,  2.445134137142996e+00,
-          3.754408661907416e+00]
+    a = [
+        -3.969683028665376e01,
+        2.209460984245205e02,
+        -2.759285104469687e02,
+        1.383577518672690e02,
+        -3.066479806614716e01,
+        2.506628277459239e00,
+    ]
+    b = [
+        -5.447609879822406e01,
+        1.615858368580409e02,
+        -1.556989798598866e02,
+        6.680131188771972e01,
+        -1.328068155288572e01,
+    ]
+    c = [
+        -7.784894002430293e-03,
+        -3.223964580411365e-01,
+        -2.400758277161838e00,
+        -2.549732539343734e00,
+        4.374664141464968e00,
+        2.938163982698783e00,
+    ]
+    d = [
+        7.784695709041462e-03,
+        3.224671290700398e-01,
+        2.445134137142996e00,
+        3.754408661907416e00,
+    ]
     plow, phigh = 0.02425, 1.0 - 0.02425
     if p < plow:
-        q = math.sqrt(-2.0*math.log(p))
-        num = (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])
-        den = ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1.0)
-        return num/den
+        q = math.sqrt(-2.0 * math.log(p))
+        num = ((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]
+        den = (((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0
+        return num / den
     if p > phigh:
-        q = math.sqrt(-2.0*math.log(1.0-p))
-        num = -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])
-        den = ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1.0)
-        return num/den
+        q = math.sqrt(-2.0 * math.log(1.0 - p))
+        num = -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5])
+        den = (((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0
+        return num / den
     q = p - 0.5
-    r = q*q
-    num = (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5]) * q
-    den = (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1.0)
-    return num/den
+    r = q * q
+    num = (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q
+    den = ((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1.0
+    return num / den
 
 
 class LittleAttack(Attack):
@@ -66,7 +88,9 @@ class LittleAttack(Attack):
     supports_subtasks = True
     max_subtasks_inflight = 0
 
-    def __init__(self, f: int, N: Optional[int] = None, *, chunk_size: int = 8192) -> None:
+    def __init__(
+        self, f: int, N: Optional[int] = None, *, chunk_size: int = 8192
+    ) -> None:
         if f < 0:
             raise ValueError("f must be >= 0")
         self.f, self.N = f, N
@@ -125,7 +149,9 @@ class LittleAttack(Attack):
         features = flat.shape[1]
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
-        chunk = select_adaptive_chunk_size(features, self.chunk_size, pool_size=pool_size)
+        chunk = select_adaptive_chunk_size(
+            features, self.chunk_size, pool_size=pool_size
+        )
 
         def _iter() -> Iterable[SubTask]:
             chunk_id = 0
@@ -161,7 +187,9 @@ class LittleAttack(Attack):
             try:
                 start, chunk_sum, chunk_sq = item
             except Exception as exc:  # pragma: no cover
-                raise ValueError(f"LittleAttack received malformed partial at index {idx}: {item!r}") from exc
+                raise ValueError(
+                    f"LittleAttack received malformed partial at index {idx}: {item!r}"
+                ) from exc
             end = start + chunk_sum.shape[0]
             sum_x[start:end] = chunk_sum
             sum_sq[start:end] = chunk_sq

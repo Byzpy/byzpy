@@ -21,7 +21,7 @@ def _load_subclasses(package: str, base: Type) -> List[str]:
         # Skip test modules
         if "tests" in mod_info.name.split("."):
             continue
-        
+
         try:
             mod = importlib.import_module(mod_info.name)
         except ImportError:
@@ -126,7 +126,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    version_parser = subparsers.add_parser("version", help="Print the installed ByzPy version.")
+    version_parser = subparsers.add_parser(
+        "version", help="Print the installed ByzPy version."
+    )
     version_parser.set_defaults(func=_cmd_version)
 
     doctor_parser = subparsers.add_parser("doctor", help="Diagnose local dependencies.")

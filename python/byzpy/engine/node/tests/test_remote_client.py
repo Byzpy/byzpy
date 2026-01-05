@@ -1,13 +1,14 @@
 """Tests for RemoteNodeClient - Category 3 from Milestone 5 Test Plan."""
+
 import asyncio
+
 import pytest
+from byzpy.engine.graph.pool import ActorPoolConfig
+from byzpy.engine.node.application import NodeApplication
+from byzpy.engine.node.context import InProcessContext
+from byzpy.engine.node.decentralized import DecentralizedNode
 from byzpy.engine.node.remote_client import RemoteNodeClient
 from byzpy.engine.node.remote_server import RemoteNodeServer
-from byzpy.engine.node.application import NodeApplication
-from byzpy.engine.graph.pool import ActorPoolConfig
-from byzpy.engine.node.decentralized import DecentralizedNode
-from byzpy.engine.node.context import InProcessContext
-
 
 _port_counter = 9100
 
@@ -26,12 +27,14 @@ def make_app():
             name=name,
             actor_pool=[ActorPoolConfig(backend="thread", count=1)],
         )
+
     return _make_app
 
 
 # =============================================================================
 # Category 3.1: RemoteNodeClient Connection
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_remotenodeclient_connects():
@@ -67,6 +70,7 @@ async def test_remotenodeclient_connection_failure():
 # Category 3.2: RemoteNodeClient Message Transport
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_remotenodeclient_send_receive(make_app):
     """Verify RemoteNodeClient can send and receive messages."""
@@ -83,6 +87,7 @@ async def test_remotenodeclient_send_receive(make_app):
 
     async def handler(from_id, payload):
         received.append((from_id, payload))
+
     server_node.register_message_handler("test", handler)
     await server.register_node(server_node)
 
@@ -94,7 +99,9 @@ async def test_remotenodeclient_send_receive(make_app):
     await client.register_node("client_node")
 
     # Send message
-    await client.send_message("server_node", "test", {"value": 42}, from_node_id="client_node")
+    await client.send_message(
+        "server_node", "test", {"value": 42}, from_node_id="client_node"
+    )
     await asyncio.sleep(0.3)
 
     assert len(received) == 1
@@ -145,4 +152,3 @@ async def test_remotenodeclient_handles_disconnection():
     assert not client.is_connected()
 
     await client.disconnect()
-

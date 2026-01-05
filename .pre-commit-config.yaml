@@ -1,0 +1,54 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: debug-statements
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        language_version: python3
+        files: ^(python/|examples/|benchmarks/|docs/).*\.py$
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+        files: ^(python/|examples/|benchmarks/|docs/).*\.py$
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.1
+    hooks:
+      # Stricter rules for main package code (still lenient on docstrings)
+      - id: flake8
+        name: flake8 (python package)
+        files: ^python/byzpy/.*\.py$
+        args: ['--max-line-length=100', '--extend-ignore=E203,W503,E501,E301,D100,D101,D102,D103,D104,D105,D107,D200,D202,D205,D400,D401,D402,D403,F401,F841']
+        additional_dependencies: [flake8-docstrings]
+      # More lenient rules for benchmarks and examples
+      - id: flake8
+        name: flake8 (benchmarks/examples)
+        files: ^(benchmarks/|examples/).*\.py$
+        args: ['--max-line-length=100', '--extend-ignore=E203,W503,E501,E402,E301,D100,D101,D102,D103,D104,D107,D200,D202,D205,D400,D401,D402,D403,F401,F811,F541,E722,F841']
+        additional_dependencies: [flake8-docstrings]
+      # For docs - minimal checks
+      - id: flake8
+        name: flake8 (docs)
+        files: ^docs/.*\.py$
+        args: ['--max-line-length=100', '--extend-ignore=E203,W503,E501']
+        additional_dependencies: [flake8-docstrings]

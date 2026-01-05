@@ -6,13 +6,9 @@ from typing import Sequence
 
 import pytest
 import torch
-
 from byzpy.aggregators.base import Aggregator
 from byzpy.engine.graph.graph import ComputationGraph
-from byzpy.engine.graph.ops import (
-    RemoteCallableOp,
-    make_single_operator_graph,
-)
+from byzpy.engine.graph.ops import RemoteCallableOp, make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
 

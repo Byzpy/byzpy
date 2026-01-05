@@ -7,6 +7,26 @@ on:
     branches: ["main"]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e python[dev]
+
+      - name: Run pre-commit hooks
+        run: |
+          pre-commit run --all-files
+
   pytest:
     runs-on: ubuntu-latest
     steps:

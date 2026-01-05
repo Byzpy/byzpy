@@ -1,21 +1,24 @@
 from __future__ import annotations
+
 from typing import Any, Iterable, Sequence
+
 import numpy as np
 
-from ..base import Aggregator
-from .._chunking import select_adaptive_chunk_size
 from ...configs.backend import get_backend
 from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
+from .._chunking import select_adaptive_chunk_size
+from ..base import Aggregator
 from ._tiling import flatten_gradients
 
 try:  # optional torch dependency
     import torch
+
     _HAS_TORCH = True
 except Exception:  # pragma: no cover
     torch = None  # type: ignore
@@ -59,6 +62,7 @@ class CoordinateWiseMedian(Aggregator):
       dimension. With subtasks: O(n * d / workers).
     - Memory complexity: O(n * d) for stacking gradients.
     """
+
     name = "coordinate-wise-median"
     supports_subtasks = True
     max_subtasks_inflight = 0
@@ -113,7 +117,9 @@ class CoordinateWiseMedian(Aggregator):
         features = flat.shape[1]
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
-        chunk = select_adaptive_chunk_size(features, self.chunk_size, pool_size=pool_size)
+        chunk = select_adaptive_chunk_size(
+            features, self.chunk_size, pool_size=pool_size
+        )
 
         def _iter_subtasks() -> Iterable[SubTask]:
             chunk_id = 0
@@ -135,7 +141,9 @@ class CoordinateWiseMedian(Aggregator):
 
         like = inputs[self.input_key][0]
         if self._flat_shape is None:
-            raise RuntimeError("CoordinateWiseMedian reduce_subtasks missing shape state.")
+            raise RuntimeError(
+                "CoordinateWiseMedian reduce_subtasks missing shape state."
+            )
         feature_dim = int(np.prod(self._flat_shape))
 
         try:
@@ -153,7 +161,9 @@ class CoordinateWiseMedian(Aggregator):
             self._flat_shape = None
 
 
-def _median_chunk(handle: SharedTensorHandle, start: int, end: int) -> tuple[int, np.ndarray]:
+def _median_chunk(
+    handle: SharedTensorHandle, start: int, end: int
+) -> tuple[int, np.ndarray]:
     with open_tensor(handle) as flat:
         view = np.array(flat, copy=False)
         chunk = view[:, start:end]

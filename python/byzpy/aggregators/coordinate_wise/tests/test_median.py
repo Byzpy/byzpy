@@ -1,5 +1,4 @@
 import torch
-
 from byzpy.aggregators.coordinate_wise.median import CoordinateWiseMedian
 from byzpy.engine.graph.operator import OpContext
 

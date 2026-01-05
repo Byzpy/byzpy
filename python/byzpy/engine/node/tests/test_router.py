@@ -1,7 +1,8 @@
 """Tests for MessageRouter - Categories 1 and 2 from Milestone 4 Test Plan."""
-import asyncio
-import pytest
 
+import asyncio
+
+import pytest
 
 # =============================================================================
 # Category 1: MessageRouter Core (8 tests)
@@ -12,8 +13,8 @@ import pytest
 
 def test_messagerouter_can_be_created():
     """Verify MessageRouter can be instantiated with topology and node_id."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(5, k=1)  # 5-node ring
     router = MessageRouter(topology=topology, node_id=0)
@@ -36,8 +37,8 @@ def test_messagerouter_without_topology():
 
 def test_messagerouter_with_string_node_ids():
     """Verify MessageRouter works with string node IDs via node_id_map."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(3, k=1)
     node_id_map = {0: "alice", 1: "bob", 2: "charlie"}
@@ -54,8 +55,8 @@ def test_messagerouter_with_string_node_ids():
 
 def test_messagerouter_computes_out_neighbors():
     """Verify get_out_neighbors() returns correct outgoing neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     # Ring topology: 0 -> 1, 0 -> 4 (k=1, n=5)
     topology = Topology.ring(5, k=1)
@@ -69,8 +70,8 @@ def test_messagerouter_computes_out_neighbors():
 
 def test_messagerouter_computes_in_neighbors():
     """Verify get_in_neighbors() returns correct incoming neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(5, k=1)
     router = MessageRouter(topology=topology, node_id=0)
@@ -83,8 +84,8 @@ def test_messagerouter_computes_in_neighbors():
 
 def test_messagerouter_complete_topology_all_neighbors():
     """Verify complete topology has all other nodes as neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.complete(4)
     router = MessageRouter(topology=topology, node_id=0)
@@ -100,8 +101,8 @@ def test_messagerouter_complete_topology_all_neighbors():
 
 def test_messagerouter_can_send_to_neighbor():
     """Verify can_send_to() returns True for valid neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(5, k=1)
     router = MessageRouter(topology=topology, node_id=0)
@@ -113,8 +114,8 @@ def test_messagerouter_can_send_to_neighbor():
 
 def test_messagerouter_cannot_send_to_non_neighbor():
     """Verify can_send_to() returns False for non-neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(5, k=1)
     router = MessageRouter(topology=topology, node_id=0)
@@ -127,6 +128,7 @@ def test_messagerouter_cannot_send_to_non_neighbor():
 # =============================================================================
 # Category 2: Routing Patterns (9 tests)
 # =============================================================================
+
 
 # Mock node for testing routing patterns
 class MockDecentralizedNode:
@@ -143,9 +145,9 @@ class MockDecentralizedNode:
 @pytest.mark.asyncio
 async def test_messagerouter_route_direct():
     """Verify route_direct() sends message to specific neighbor."""
-    from byzpy.engine.peer_to_peer.topology import Topology
-    from byzpy.engine.node.router import MessageRouter
     from byzpy.engine.node.context import InProcessContext
+    from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(3, k=1)
 
@@ -183,8 +185,8 @@ async def test_messagerouter_route_direct():
 @pytest.mark.asyncio
 async def test_messagerouter_route_direct_to_non_neighbor_raises():
     """Verify route_direct() raises error for non-neighbor."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(5, k=1)
     router = MessageRouter(topology=topology, node_id=0)
@@ -205,9 +207,9 @@ async def test_messagerouter_route_direct_to_non_neighbor_raises():
 @pytest.mark.asyncio
 async def test_messagerouter_route_broadcast():
     """Verify route_broadcast() sends message to all neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
-    from byzpy.engine.node.router import MessageRouter
     from byzpy.engine.node.context import InProcessContext
+    from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(4, k=1)
 
@@ -242,9 +244,9 @@ async def test_messagerouter_route_broadcast():
 @pytest.mark.asyncio
 async def test_messagerouter_route_broadcast_complete_topology():
     """Verify broadcast in complete topology reaches all other nodes."""
-    from byzpy.engine.peer_to_peer.topology import Topology
-    from byzpy.engine.node.router import MessageRouter
     from byzpy.engine.node.context import InProcessContext
+    from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.complete(4)
 
@@ -274,9 +276,9 @@ async def test_messagerouter_route_broadcast_complete_topology():
 @pytest.mark.asyncio
 async def test_messagerouter_route_multicast():
     """Verify route_multicast() sends to subset of neighbors."""
-    from byzpy.engine.peer_to_peer.topology import Topology
-    from byzpy.engine.node.router import MessageRouter
     from byzpy.engine.node.context import InProcessContext
+    from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.complete(4)  # All nodes are neighbors
 
@@ -310,8 +312,8 @@ async def test_messagerouter_route_multicast():
 @pytest.mark.asyncio
 async def test_messagerouter_route_multicast_validates_neighbors():
     """Verify multicast fails if any target is not a neighbor."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(5, k=1)  # Node 0 neighbors: 1, 4
     router = MessageRouter(topology=topology, node_id=0)
@@ -329,8 +331,8 @@ async def test_messagerouter_route_multicast_validates_neighbors():
 @pytest.mark.asyncio
 async def test_messagerouter_route_multicast_empty_list():
     """Verify multicast with empty list does nothing."""
-    from byzpy.engine.peer_to_peer.topology import Topology
     from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(3, k=1)
     router = MessageRouter(topology=topology, node_id=0)
@@ -350,9 +352,9 @@ async def test_messagerouter_route_multicast_empty_list():
 @pytest.mark.asyncio
 async def test_messagerouter_route_reply():
     """Verify route_reply() sends back to message sender if valid neighbor."""
-    from byzpy.engine.peer_to_peer.topology import Topology
-    from byzpy.engine.node.router import MessageRouter
     from byzpy.engine.node.context import InProcessContext
+    from byzpy.engine.node.router import MessageRouter
+    from byzpy.engine.peer_to_peer.topology import Topology
 
     topology = Topology.ring(3, k=1)  # Bidirectional
 
@@ -381,4 +383,3 @@ async def test_messagerouter_route_reply():
     assert reply["from"] == 1
     assert reply["type"] == "response"
     assert reply["payload"]["result"] == "ok"
-

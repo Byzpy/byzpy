@@ -1,12 +1,13 @@
 """Tests for RemoteContext - Category 1 from Milestone 5 Test Plan."""
-import asyncio
-import pytest
-from byzpy.engine.node.context import RemoteContext, InProcessContext
-from byzpy.engine.node.remote_server import RemoteNodeServer
-from byzpy.engine.node.application import NodeApplication
-from byzpy.engine.graph.pool import ActorPoolConfig
-from byzpy.engine.node.decentralized import DecentralizedNode
 
+import asyncio
+
+import pytest
+from byzpy.engine.graph.pool import ActorPoolConfig
+from byzpy.engine.node.application import NodeApplication
+from byzpy.engine.node.context import InProcessContext, RemoteContext
+from byzpy.engine.node.decentralized import DecentralizedNode
+from byzpy.engine.node.remote_server import RemoteNodeServer
 
 # Port management to avoid conflicts
 _port_counter = 8888
@@ -23,17 +24,20 @@ def get_next_port():
 @pytest.fixture
 def make_app():
     """Create a simple NodeApplication for testing."""
+
     def _make_app(name: str):
         return NodeApplication(
             name=name,
             actor_pool=[ActorPoolConfig(backend="thread", count=1)],
         )
+
     return _make_app
 
 
 # =============================================================================
 # Category 1.1: RemoteContext Creation and Configuration
 # =============================================================================
+
 
 def test_remotecontext_can_be_created():
     """Verify RemoteContext can be instantiated with host and port."""
@@ -64,6 +68,7 @@ def test_remotecontext_connection_state():
 # =============================================================================
 # Category 1.2: RemoteContext Connection Management
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_remotecontext_connects_to_server(make_app):
@@ -152,6 +157,7 @@ async def test_remotecontext_reconnection(make_app):
 # Category 1.3: RemoteContext Message Sending
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_remotecontext_send_message(make_app):
     """Verify RemoteContext can send messages to remote server."""
@@ -170,6 +176,7 @@ async def test_remotecontext_send_message(make_app):
 
     async def handler(from_id, payload):
         received_messages.append((from_id, payload))
+
     server_node.register_message_handler("test_msg", handler)
 
     server_task = asyncio.create_task(server.serve())
@@ -215,6 +222,7 @@ async def test_remotecontext_send_message_not_connected():
 async def test_remotecontext_send_large_payload(make_app):
     """Verify RemoteContext can send large payloads efficiently."""
     import numpy as np
+
     port = get_next_port()
     received_payload = None
 
@@ -229,6 +237,7 @@ async def test_remotecontext_send_large_payload(make_app):
     async def handler(from_id, payload):
         nonlocal received_payload
         received_payload = payload
+
     server_node.register_message_handler("large_data", handler)
     await server.register_node(server_node)
 
@@ -247,7 +256,9 @@ async def test_remotecontext_send_large_payload(make_app):
 
     # Send large numpy array
     large_array = np.random.rand(1000, 1000).astype(np.float32)
-    await client_context.send_message("server_node", "large_data", {"array": large_array})
+    await client_context.send_message(
+        "server_node", "large_data", {"array": large_array}
+    )
     await asyncio.sleep(0.5)
 
     assert received_payload is not None
@@ -266,8 +277,11 @@ async def test_remotecontext_send_large_payload(make_app):
 # Category 1.4: RemoteContext Message Receiving
 # =============================================================================
 
+
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Flaky test - timing issue with message delivery, receives 1 message instead of expected 2")
+@pytest.mark.skip(
+    reason="Flaky test - timing issue with message delivery, receives 1 message instead of expected 2"
+)
 async def test_remotecontext_receive_messages(make_app):
     """Verify RemoteContext can receive messages from remote server."""
     port = get_next_port()
@@ -321,5 +335,3 @@ async def test_remotecontext_receive_messages(make_app):
         await server_task
     except asyncio.CancelledError:
         pass
-
-

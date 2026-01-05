@@ -1,19 +1,23 @@
 from __future__ import annotations
+
 from typing import Any, Iterable, Sequence
+
 import numpy as np
 
-from ..base import Aggregator
-from .._chunking import select_adaptive_chunk_size
 from ...configs.backend import get_backend
 from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
+from .._chunking import select_adaptive_chunk_size
+from ..base import Aggregator
+
 try:
     import torch
+
     _HAS_TORCH = True
 except Exception:  # pragma: no cover
     torch = None  # type: ignore
@@ -58,6 +62,7 @@ class CoordinateWiseTrimmedMean(Aggregator):
     .. [1] Yin, D., Chen, Y., Kannan, R., & Bartlett, P. (2018). Byzantine-robust
        distributed learning: Towards optimal statistical rates. ICML.
     """
+
     name = "coordinate-wise-trimmed-mean"
     supports_subtasks = True
     max_subtasks_inflight = 0
@@ -100,13 +105,15 @@ class CoordinateWiseTrimmedMean(Aggregator):
         n = len(gradients)
         f = self.f
         if f < 0 or 2 * f >= n:
-            raise ValueError(f"trim parameter f must satisfy 0 <= 2f < n (got n={n}, f={f})")
+            raise ValueError(
+                f"trim parameter f must satisfy 0 <= 2f < n (got n={n}, f={f})"
+            )
 
         be = get_backend()
         like = gradients[0]
         X = be.stack([be.asarray(g, like=like) for g in gradients], axis=0)  # (n, ...)
-        sorted_vals = be.sort(X, axis=0)   # (n, ...)
-        inner = sorted_vals[f : n - f]     # (n-2f, ...)
+        sorted_vals = be.sort(X, axis=0)  # (n, ...)
+        inner = sorted_vals[f : n - f]  # (n-2f, ...)
         return be.mean(inner, axis=0)
 
     def create_subtasks(self, inputs, *, context):  # type: ignore[override]
@@ -117,7 +124,9 @@ class CoordinateWiseTrimmedMean(Aggregator):
         n = len(gradients)
         f = self.f
         if f < 0 or 2 * f >= n:
-            raise ValueError(f"trim parameter f must satisfy 0 <= 2f < n (got n={n}, f={f})")
+            raise ValueError(
+                f"trim parameter f must satisfy 0 <= 2f < n (got n={n}, f={f})"
+            )
 
         flat_shape, flat = _flatten_gradients(gradients)
         self._flat_shape = flat_shape
@@ -126,7 +135,9 @@ class CoordinateWiseTrimmedMean(Aggregator):
         features = flat.shape[1]
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
-        chunk = select_adaptive_chunk_size(features, self.chunk_size, pool_size=pool_size)
+        chunk = select_adaptive_chunk_size(
+            features, self.chunk_size, pool_size=pool_size
+        )
 
         def _iter_subtasks() -> Iterable[SubTask]:
             chunk_id = 0
@@ -165,7 +176,9 @@ class CoordinateWiseTrimmedMean(Aggregator):
             self._active_handle = None
 
 
-def _cw_trimmed_chunk(handle: SharedTensorHandle, n: int, f: int, start: int, end: int, like_template) -> tuple[int, np.ndarray]:
+def _cw_trimmed_chunk(
+    handle: SharedTensorHandle, n: int, f: int, start: int, end: int, like_template
+) -> tuple[int, np.ndarray]:
     with open_tensor(handle) as flat:
         view = flat[:, start:end]
         sorted_vals = np.sort(view, axis=0)

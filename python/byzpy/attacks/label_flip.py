@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import Optional, Dict, List
+
+from typing import Dict, List, Optional
+
 import torch
 import torch.nn as nn
 from byzpy.attacks.base import Attack
@@ -12,7 +14,7 @@ def _mirror_labels(y: torch.Tensor, K: int) -> torch.Tensor:
 def _apply_mapping(y: torch.Tensor, mapping: Dict[int, int]) -> torch.Tensor:
     out = y.clone()
     for src, dst in mapping.items():
-        m = (y == int(src))
+        m = y == int(src)
         if m.any():
             out[m] = int(dst)
     return out
@@ -66,7 +68,7 @@ class LabelFlipAttack(Attack):
         if self.mapping is not None:
             y_flip = _apply_mapping(y, self.mapping)
         else:
-            assert(self.num_classes is not None)
+            assert self.num_classes is not None
             y_flip = _mirror_labels(y, int(self.num_classes))
 
         for p in model.parameters():

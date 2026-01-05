@@ -10,15 +10,23 @@ import time
 from dataclasses import dataclass
 
 import torch
-
 from byzpy.attacks.sign_flip import SignFlipAttack
 from byzpy.engine.graph.ops import make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
+
 try:
-    from ._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+    from ._worker_args import (
+        DEFAULT_WORKER_COUNTS,
+        coerce_worker_counts,
+        parse_worker_counts,
+    )
 except ImportError:
-    from _worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+    from _worker_args import (
+        DEFAULT_WORKER_COUNTS,
+        coerce_worker_counts,
+        parse_worker_counts,
+    )
 
 
 @dataclass(frozen=True)
@@ -33,8 +41,12 @@ class BenchmarkRun:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark the SignFlip attack.")
-    parser.add_argument("--grad-dim", type=int, default=262144, help="Gradient dimension.")
-    parser.add_argument("--chunk-size", type=int, default=8192, help="Coordinates per subtask.")
+    parser.add_argument(
+        "--grad-dim", type=int, default=262144, help="Gradient dimension."
+    )
+    parser.add_argument(
+        "--chunk-size", type=int, default=8192, help="Coordinates per subtask."
+    )
     parser.add_argument("--scale", type=float, default=-1.0, help="Scaling factor.")
     default_workers = ",".join(str(count) for count in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
@@ -43,9 +55,15 @@ def _parse_args() -> argparse.Namespace:
         default=default_workers,
         help=f"Comma/space separated worker counts for ActorPool runs (default: {default_workers}).",
     )
-    parser.add_argument("--pool-backend", type=str, default="process", help="Actor backend.")
-    parser.add_argument("--warmup", type=int, default=1, help="Warm-up iterations per mode.")
-    parser.add_argument("--repeat", type=int, default=3, help="Timed iterations per mode.")
+    parser.add_argument(
+        "--pool-backend", type=str, default="process", help="Actor backend."
+    )
+    parser.add_argument(
+        "--warmup", type=int, default=1, help="Warm-up iterations per mode."
+    )
+    parser.add_argument(
+        "--repeat", type=int, default=3, help="Timed iterations per mode."
+    )
     parser.add_argument("--seed", type=int, default=0, help="PRNG seed.")
     args = parser.parse_args()
     args.pool_workers = parse_worker_counts(args.pool_workers)
@@ -58,7 +76,9 @@ def _make_gradient(dim: int, seed: int) -> torch.Tensor:
     return torch.randn(dim, generator=gen)
 
 
-def _time_direct(attack: SignFlipAttack, grad: torch.Tensor, *, iterations: int, warmup: int) -> float:
+def _time_direct(
+    attack: SignFlipAttack, grad: torch.Tensor, *, iterations: int, warmup: int
+) -> float:
     for _ in range(warmup):
         attack.apply(base_grad=grad)
     start = time.perf_counter()
@@ -87,7 +107,9 @@ async def _time_scheduler(
 
 
 async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
-    worker_counts = coerce_worker_counts(getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS))
+    worker_counts = coerce_worker_counts(
+        getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS)
+    )
     grad = _make_gradient(args.grad_dim, args.seed)
     attack = SignFlipAttack(scale=args.scale, chunk_size=args.chunk_size)
 

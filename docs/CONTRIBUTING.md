@@ -346,4 +346,3 @@ Current documentation priorities:
 ## Thank You!
 
 Your contributions make ByzPy better for everyone. Thank you for taking the time to improve the documentation!
-

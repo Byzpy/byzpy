@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
-from typing import List, Tuple, Dict, Any
+from typing import Any, Dict, List, Tuple
 
 import torch
 import torch.nn as nn
@@ -16,22 +16,23 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir, os.pardir))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from byzpy.configs.actor import set_actor
-from byzpy.engine.node.actors import HonestNodeActor, ByzantineNodeActor
-from byzpy.engine.node.context import ProcessContext
-from byzpy.engine.peer_to_peer.runner import DecentralizedPeerToPeer
-from byzpy.engine.node.decentralized import DecentralizedNode
-from byzpy.engine.peer_to_peer.topology import Topology
-from byzpy.engine.graph.ops import make_single_operator_graph, CallableOp
-from byzpy.engine.graph.pool import ActorPoolConfig
 from byzpy.aggregators.coordinate_wise.median import CoordinateWiseMedian
-from byzpy.engine.node.application import HonestNodeApplication, ByzantineNodeApplication
-from byzpy.engine.node.cluster import DecentralizedCluster
 from byzpy.attacks.empire import EmpireAttack
-from examples.p2p.nodes import (
-    SmallCNN,
-    select_pool_backend,
+from byzpy.configs.actor import set_actor
+from byzpy.engine.graph.ops import CallableOp, make_single_operator_graph
+from byzpy.engine.graph.pool import ActorPoolConfig
+from byzpy.engine.node.actors import ByzantineNodeActor, HonestNodeActor
+from byzpy.engine.node.application import (
+    ByzantineNodeApplication,
+    HonestNodeApplication,
 )
+from byzpy.engine.node.cluster import DecentralizedCluster
+from byzpy.engine.node.context import ProcessContext
+from byzpy.engine.node.decentralized import DecentralizedNode
+from byzpy.engine.peer_to_peer.runner import DecentralizedPeerToPeer
+from byzpy.engine.peer_to_peer.topology import Topology
+
+from examples.p2p.nodes import SmallCNN, select_pool_backend
 
 
 def shard_indices(n_items: int, n_shards: int) -> List[List[int]]:
@@ -77,7 +78,7 @@ def _write_params(model: nn.Module, vec: torch.Tensor) -> None:
     offset = 0
     for p in model.parameters():
         n = p.numel()
-        p.data.copy_(vec[offset:offset+n].view_as(p).to(p.device))
+        p.data.copy_(vec[offset : offset + n].view_as(p).to(p.device))
         offset += n
 
 
@@ -115,12 +116,16 @@ async def main():
     print(f"  - Batch size: {batch_size}")
     print(f"  - Learning rate: {lr}")
     print(f"  - Device: {device}")
-    print(f"  - Coordination: Fully autonomous (nodes run training loops in subprocess)")
+    print(
+        f"  - Coordination: Fully autonomous (nodes run training loops in subprocess)"
+    )
     print(f"  - State: Node-local (models created in subprocess, not pickled)")
     print("=" * 70)
 
     tfm = transforms.Compose([transforms.ToTensor()])
-    _tmp_train = datasets.MNIST(root=data_root, train=True, download=True, transform=tfm)
+    _tmp_train = datasets.MNIST(
+        root=data_root, train=True, download=True, transform=tfm
+    )
     shards = shard_indices(len(_tmp_train), n_honest)
 
     def context_factory(node_id: str, node_index: int) -> ProcessContext:
@@ -128,12 +133,23 @@ async def main():
         return ProcessContext()
 
     # Create initialization callbacks that create models IN THE SUBPROCESS
-    def make_honest_init_callback(node_id: str, indices: List[int], lr: float, max_rounds: int, batch_size: int, data_root: str, device_str: str):
+    def make_honest_init_callback(
+        node_id: str,
+        indices: List[int],
+        lr: float,
+        max_rounds: int,
+        batch_size: int,
+        data_root: str,
+        device_str: str,
+    ):
         """Create initialization callback for honest nodes."""
+
         async def init_callback(node: DecentralizedNode):
             # Get process ID to demonstrate process-level isolation
             pid = os.getpid()
-            print(f"[Node {node_id}, PID {pid}] Initializing honest node in subprocess...")
+            print(
+                f"[Node {node_id}, PID {pid}] Initializing honest node in subprocess..."
+            )
 
             # Create model, data loader, etc. IN THIS SUBPROCESS (node-local)
             dev = torch.device(device_str)
@@ -142,7 +158,9 @@ async def main():
 
             # Create data loader in subprocess
             tfm = transforms.Compose([transforms.ToTensor()])
-            full = datasets.MNIST(root=data_root, train=True, download=True, transform=tfm)
+            full = datasets.MNIST(
+                root=data_root, train=True, download=True, transform=tfm
+            )
             subset = data.Subset(full, indices)
             data_loader = data.DataLoader(
                 subset,
@@ -155,7 +173,9 @@ async def main():
             )
             data_iter_ref = [iter(data_loader)]  # Mutable reference for iterator
 
-            print(f"[Node {node_id}, PID {pid}] Model and data loader created (node-local)")
+            print(
+                f"[Node {node_id}, PID {pid}] Model and data loader created (node-local)"
+            )
 
             # Store node-local state in a dict accessible to pipelines
             # We'll pass this to pipelines via application metadata or closure
@@ -214,7 +234,9 @@ async def main():
                 state = node_state
                 _write_params(state["model"], param_vector)
 
-            update_model_op = CallableOp(update_model, input_mapping={"param_vector": "param_vector"})
+            update_model_op = CallableOp(
+                update_model, input_mapping={"param_vector": "param_vector"}
+            )
             update_model_graph = make_single_operator_graph(
                 node_name="update_model",
                 operator=update_model_op,
@@ -251,20 +273,21 @@ async def main():
                         # Aggregate using pipeline
                         result = await node.execute_pipeline(
                             "aggregate",
-                            {"gradients": [self_half_step_result] + gradient_cache}
+                            {"gradients": [self_half_step_result] + gradient_cache},
                         )
                         aggregated = result.get("aggregate")
 
                         if aggregated is not None:
                             # Update node-local model using pipeline
                             await node.execute_pipeline(
-                                "update_model",
-                                {"param_vector": aggregated}
+                                "update_model", {"param_vector": aggregated}
                             )
 
                         gradient_cache.clear()
                         rounds_completed += 1
-                        print(f"[Node {node_id}, PID {pid}] Completed round {rounds_completed}/{max_rounds} (aggregated {num_grads} gradients)")
+                        print(
+                            f"[Node {node_id}, PID {pid}] Completed round {rounds_completed}/{max_rounds} (aggregated {num_grads} gradients)"
+                        )
                     except Exception as e:
                         pass  # Continue even if aggregation fails
 
@@ -277,7 +300,9 @@ async def main():
 
                 # Small delay to let all nodes start
                 await asyncio.sleep(0.5)
-                print(f"[Node {node_id}, PID {pid}] Starting autonomous training loop...")
+                print(
+                    f"[Node {node_id}, PID {pid}] Starting autonomous training loop..."
+                )
 
                 step_count = 0
                 while node._running and rounds_completed < max_rounds:
@@ -297,9 +322,13 @@ async def main():
                                 step_count += 1
 
                                 # Broadcast gradient to neighbors
-                                await node.broadcast_message("gradient", {"vector": half_step_vector})
+                                await node.broadcast_message(
+                                    "gradient", {"vector": half_step_vector}
+                                )
                                 if step_count % 5 == 0:  # Print every 5 steps
-                                    print(f"[Node {node_id}, PID {pid}] Step {step_count}: half-step complete, broadcast gradient (rounds completed: {rounds_completed}/{max_rounds})")
+                                    print(
+                                        f"[Node {node_id}, PID {pid}] Step {step_count}: half-step complete, broadcast gradient (rounds completed: {rounds_completed}/{max_rounds})"
+                                    )
                             else:
                                 break  # Exit loop if we've reached max_rounds
 
@@ -309,18 +338,25 @@ async def main():
                         # Continue even if step fails
                         await asyncio.sleep(0.1)
 
-                print(f"[Node {node_id}, PID {pid}] Training loop completed ({rounds_completed} rounds)")
+                print(
+                    f"[Node {node_id}, PID {pid}] Training loop completed ({rounds_completed} rounds)"
+                )
 
             await node.start_autonomous_task(training_loop(), "training")
 
         return init_callback
 
-    def make_byzantine_init_callback(node_id: str, max_rounds: int, device_str: str, scale: float):
+    def make_byzantine_init_callback(
+        node_id: str, max_rounds: int, device_str: str, scale: float
+    ):
         """Create initialization callback for byzantine nodes."""
+
         async def init_callback(node: DecentralizedNode):
             # Get process ID to demonstrate process-level isolation
             pid = os.getpid()
-            print(f"[Node {node_id}, PID {pid}] Initializing byzantine node in subprocess...")
+            print(
+                f"[Node {node_id}, PID {pid}] Initializing byzantine node in subprocess..."
+            )
 
             # Create attack IN THIS SUBPROCESS (node-local)
             attack = EmpireAttack(scale=scale)
@@ -329,7 +365,9 @@ async def main():
             print(f"[Node {node_id}, PID {pid}] Attack created (node-local)")
 
             # Register broadcast pipeline
-            async def broadcast(neighbor_vectors: List[torch.Tensor], like: torch.Tensor):
+            async def broadcast(
+                neighbor_vectors: List[torch.Tensor], like: torch.Tensor
+            ):
                 """Generate malicious vector using node-local attack."""
                 if not neighbor_vectors:
                     return like
@@ -337,7 +375,10 @@ async def main():
                 result = state["attack"].apply(honest_grads=neighbor_vectors)
                 return result
 
-            broadcast_op = CallableOp(broadcast, input_mapping={"neighbor_vectors": "neighbor_vectors", "like": "like"})
+            broadcast_op = CallableOp(
+                broadcast,
+                input_mapping={"neighbor_vectors": "neighbor_vectors", "like": "like"},
+            )
             broadcast_graph = make_single_operator_graph(
                 node_name="broadcast",
                 operator=broadcast_op,
@@ -381,27 +422,30 @@ async def main():
                             template = gradient_cache[0]
                             result = await node.execute_pipeline(
                                 "broadcast",
-                                {
-                                    "neighbor_vectors": gradient_cache,
-                                    "like": template
-                                }
+                                {"neighbor_vectors": gradient_cache, "like": template},
                             )
                             malicious = result.get("broadcast")
 
                             if malicious is not None:
                                 # Only broadcast if we haven't exceeded max_rounds
                                 if rounds_completed < max_rounds:
-                                    await node.broadcast_message("gradient", {"vector": malicious})
+                                    await node.broadcast_message(
+                                        "gradient", {"vector": malicious}
+                                    )
                                     gradient_cache.clear()
                                     rounds_completed += 1
-                                    print(f"[Node {node_id}, PID {pid}] Attack round {rounds_completed}/{max_rounds} complete (broadcast malicious vector)")
+                                    print(
+                                        f"[Node {node_id}, PID {pid}] Attack round {rounds_completed}/{max_rounds} complete (broadcast malicious vector)"
+                                    )
                                 else:
                                     break
                         except Exception as e:
                             pass
                     await asyncio.sleep(0.2)
 
-                print(f"[Node {node_id}, PID {pid}] Attack loop completed ({rounds_completed} rounds)")
+                print(
+                    f"[Node {node_id}, PID {pid}] Attack loop completed ({rounds_completed} rounds)"
+                )
 
             await node.start_autonomous_task(attack_loop(), "attack")
 
@@ -455,7 +499,9 @@ async def main():
                 node_id, rounds, str(device), -1.0
             )
 
-    print("Starting all nodes (each in separate OS process with autonomous training loops)...")
+    print(
+        "Starting all nodes (each in separate OS process with autonomous training loops)..."
+    )
     await cluster.start_all()
     # Wait for training to complete
     print(f"\nWaiting for {rounds} training rounds to complete...")
@@ -464,6 +510,7 @@ async def main():
     print("\nShutting down all nodes...")
     await cluster.shutdown_all()
     print("  ✓ All nodes shut down successfully")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -30,19 +30,28 @@ if str(REPO_ROOT) not in sys.path:
 
 from byzpy.aggregators.geometric_wise.krum import MultiKrum
 from byzpy.configs.actor import set_actor
-from byzpy.engine.node.actors import HonestNodeActor, ByzantineNodeActor
-from byzpy.engine.parameter_server.ps import ParameterServer
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
+from byzpy.engine.node.actors import ByzantineNodeActor, HonestNodeActor
+from byzpy.engine.parameter_server.ps import ParameterServer
+
 from examples.ps.nodes import (
-    DistributedPSHonestNode,
     DistributedPSByzNode,
+    DistributedPSHonestNode,
     select_pool_backend,
 )
 
 try:
-    from benchmarks.pytorch._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+    from benchmarks.pytorch._worker_args import (
+        DEFAULT_WORKER_COUNTS,
+        coerce_worker_counts,
+        parse_worker_counts,
+    )
 except ImportError:
-    from _worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts  # type: ignore
+    from _worker_args import (  # type: ignore
+        DEFAULT_WORKER_COUNTS,
+        coerce_worker_counts,
+        parse_worker_counts,
+    )
 
 
 @dataclass(frozen=True)
@@ -85,7 +94,9 @@ async def _train_byzpy(
     torch.manual_seed(seed)
 
     tfm = transforms.Compose([transforms.ToTensor()])
-    train_dataset = datasets.MNIST(root=data_root, train=True, download=True, transform=tfm)
+    train_dataset = datasets.MNIST(
+        root=data_root, train=True, download=True, transform=tfm
+    )
     shards = _shard_indices(len(train_dataset), num_honest)
 
     node_pool_backend = select_pool_backend(actor_backend)
@@ -124,7 +135,13 @@ async def _train_byzpy(
     aggregator = MultiKrum(f=f, q=q, chunk_size=chunk_size)
     pool = None
     if pool_workers is not None and pool_workers > 1:
-        pool = ActorPool([ActorPoolConfig(backend=pool_backend, count=pool_workers, name="aggregator-pool")])
+        pool = ActorPool(
+            [
+                ActorPoolConfig(
+                    backend=pool_backend, count=pool_workers, name="aggregator-pool"
+                )
+            ]
+        )
         await pool.start()
 
     ps = ParameterServer(
@@ -153,7 +170,9 @@ async def _train_byzpy(
 async def _benchmark(args: argparse.Namespace) -> List[BenchmarkRun]:
     """Run ByzPy benchmarks with different ActorPool configurations."""
     runs: List[BenchmarkRun] = []
-    worker_counts = coerce_worker_counts(getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS))
+    worker_counts = coerce_worker_counts(
+        getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS)
+    )
 
     # ByzPy without pool
     byzpy_direct = await _train_byzpy(
@@ -204,25 +223,46 @@ def _print_results(runs: Sequence[BenchmarkRun]) -> None:
     print("-" * 70)
 
     for run in runs:
-        speedup = baseline / run.total_seconds if run.total_seconds > 0 else float("inf")
+        speedup = (
+            baseline / run.total_seconds if run.total_seconds > 0 else float("inf")
+        )
         speedup_label = f"{speedup:.2f}x" if speedup != float("inf") else "N/A"
         if run == runs[0]:
             speedup_label = "baseline"
-        print(f"{run.label:50s} {run.total_ms:12.2f} {run.avg_ms:15.2f} {speedup_label:>12s}")
+        print(
+            f"{run.label:50s} {run.total_ms:12.2f} {run.avg_ms:15.2f} {speedup_label:>12s}"
+        )
 
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Benchmark ByzPy ParameterServer training with MultiKrum aggregator."
     )
-    parser.add_argument("--num-honest", type=int, default=10, help="Number of honest nodes.")
-    parser.add_argument("--num-byz", type=int, default=3, help="Number of Byzantine nodes.")
-    parser.add_argument("--rounds", type=int, default=50, help="Number of training rounds.")
-    parser.add_argument("--batch-size", type=int, default=64, help="Batch size per node.")
+    parser.add_argument(
+        "--num-honest", type=int, default=10, help="Number of honest nodes."
+    )
+    parser.add_argument(
+        "--num-byz", type=int, default=3, help="Number of Byzantine nodes."
+    )
+    parser.add_argument(
+        "--rounds", type=int, default=50, help="Number of training rounds."
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=64, help="Batch size per node."
+    )
     parser.add_argument("--lr", type=float, default=0.1, help="Learning rate.")
-    parser.add_argument("--f", type=int, default=3, help="MultiKrum fault tolerance parameter.")
-    parser.add_argument("--q", type=int, default=None, help="MultiKrum parameter q (defaults to n - f - 1).")
-    parser.add_argument("--chunk-size", type=int, default=32, help="MultiKrum chunk size.")
+    parser.add_argument(
+        "--f", type=int, default=3, help="MultiKrum fault tolerance parameter."
+    )
+    parser.add_argument(
+        "--q",
+        type=int,
+        default=None,
+        help="MultiKrum parameter q (defaults to n - f - 1).",
+    )
+    parser.add_argument(
+        "--chunk-size", type=int, default=32, help="MultiKrum chunk size."
+    )
     default_workers = ",".join(str(count) for count in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
         "--pool-workers",
@@ -230,10 +270,16 @@ def _parse_args() -> argparse.Namespace:
         default=default_workers,
         help=f"Comma/space separated worker counts for ActorPool (default: {default_workers}).",
     )
-    parser.add_argument("--pool-backend", type=str, default="process", help="ActorPool backend.")
-    parser.add_argument("--actor-backend", type=str, default="process", help="Node actor backend.")
+    parser.add_argument(
+        "--pool-backend", type=str, default="process", help="ActorPool backend."
+    )
+    parser.add_argument(
+        "--actor-backend", type=str, default="process", help="Node actor backend."
+    )
     parser.add_argument("--seed", type=int, default=42, help="Random seed.")
-    parser.add_argument("--data-root", type=str, default="./data", help="MNIST data directory.")
+    parser.add_argument(
+        "--data-root", type=str, default="./data", help="MNIST data directory."
+    )
     args = parser.parse_args()
     args.pool_workers = parse_worker_counts(args.pool_workers)
     if args.q is None:

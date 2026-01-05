@@ -3,22 +3,24 @@ Category 7: API Compatibility Tests
 
 Tests for backwards compatibility with existing PeerToPeer API.
 """
+
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 import torch
-
-from byzpy.engine.peer_to_peer.train import PeerToPeer
-from byzpy.engine.peer_to_peer.topology import Topology
-from byzpy.engine.node.actors import HonestNodeActor, ByzantineNodeActor
+from byzpy.aggregators.coordinate_wise import CoordinateWiseMedian
 from byzpy.engine.actor.backends.thread import ThreadActorBackend
 from byzpy.engine.graph.pool import ActorPoolConfig
-from byzpy.aggregators.coordinate_wise import CoordinateWiseMedian
+from byzpy.engine.node.actors import ByzantineNodeActor, HonestNodeActor
+from byzpy.engine.peer_to_peer.topology import Topology
+from byzpy.engine.peer_to_peer.train import PeerToPeer
 
 
 class _StubHonestNode:
     """Stub honest node for testing."""
+
     def __init__(self, grad: torch.Tensor):
         self._grad = grad
         self.lr = 0.1
@@ -34,6 +36,7 @@ class _StubHonestNode:
 
 class _StubByzantineNode:
     """Stub byzantine node for testing."""
+
     async def p2p_broadcast_vector(self, neighbor_vectors=None, like=None):
         if like is not None:
             return torch.zeros_like(like)
@@ -110,4 +113,3 @@ async def test_peertopeer_multiple_rounds():
         await asyncio.sleep(0.1)
 
     await p2p.shutdown()
-

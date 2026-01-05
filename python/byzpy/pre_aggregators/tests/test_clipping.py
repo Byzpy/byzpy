@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import torch
-
-from byzpy.pre_aggregators.clipping import Clipping
 from byzpy.engine.graph.operator import OpContext
+from byzpy.pre_aggregators.clipping import Clipping
 
 
 def test_clipping_basic_scaling() -> None:

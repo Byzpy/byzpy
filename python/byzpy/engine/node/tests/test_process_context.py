@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 import torch
-
+from byzpy.engine.graph.pool import ActorPoolConfig
+from byzpy.engine.node.application import NodeApplication
 from byzpy.engine.node.context import NodeContext, ProcessContext
 from byzpy.engine.node.decentralized import DecentralizedNode
-from byzpy.engine.node.application import NodeApplication
-from byzpy.engine.graph.pool import ActorPoolConfig
 
 
 def create_test_application():
@@ -30,6 +30,7 @@ def create_test_node(node_id: str = "test-node"):
 
 
 # Category 1: ProcessContext Core Functionality
+
 
 def test_processcontext_can_be_created():
     """Verify ProcessContext can be instantiated."""
@@ -157,4 +158,3 @@ async def test_processcontext_receive_messages_when_not_started():
     with pytest.raises((RuntimeError, StopAsyncIteration)):
         async for msg in ctx.receive_messages():
             break
-

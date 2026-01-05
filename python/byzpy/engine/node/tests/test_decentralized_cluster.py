@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import asyncio
-import pytest
 
+import pytest
+from byzpy.engine.graph.pool import ActorPoolConfig
+from byzpy.engine.node.application import NodeApplication
 from byzpy.engine.node.cluster import DecentralizedCluster
 from byzpy.engine.node.context import ProcessContext
-from byzpy.engine.node.application import NodeApplication
-from byzpy.engine.graph.pool import ActorPoolConfig
 
 
 def create_test_application():
@@ -18,6 +18,7 @@ def create_test_application():
 
 
 # Category 3: DecentralizedCluster
+
 
 def test_decentralizedcluster_can_be_created():
     """Verify DecentralizedCluster can be instantiated."""
@@ -119,4 +120,3 @@ async def test_decentralizedcluster_duplicate_node_id():
         await cluster.add_node("node1", create_test_application())
 
     await cluster.shutdown_all()
-

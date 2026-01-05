@@ -1,5 +1,4 @@
 import torch
-
 from byzpy.aggregators.geometric_wise import SMEA
 from byzpy.engine.graph.operator import OpContext
 
@@ -27,6 +26,8 @@ def test_smea_chunk_matches_direct():
     ctx = OpContext(node_name="smea", metadata={"pool_size": 4})
     subtasks = list(chunked.create_subtasks(inputs, context=ctx))
     partials = [task.fn(*task.args, **task.kwargs) for task in subtasks]
-    reduced = chunked.reduce_subtasks(partials, inputs, context=OpContext(node_name="smea", metadata={}))
+    reduced = chunked.reduce_subtasks(
+        partials, inputs, context=OpContext(node_name="smea", metadata={})
+    )
 
     assert torch.allclose(direct, reduced, atol=1e-6)

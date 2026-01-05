@@ -1,22 +1,22 @@
 from __future__ import annotations
+
 from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple
 
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-
-from byzpy.attacks.base import Attack
 from byzpy.aggregators._chunking import select_adaptive_chunk_size
+from byzpy.aggregators.coordinate_wise._tiling import flatten_gradients
+from byzpy.attacks.base import Attack
 from byzpy.configs.backend import get_backend
 from byzpy.engine.graph.operator import OpContext
 from byzpy.engine.graph.subtask import SubTask
 from byzpy.engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
-from byzpy.aggregators.coordinate_wise._tiling import flatten_gradients
 
 
 class EmpireAttack(Attack):
@@ -124,7 +124,11 @@ class EmpireAttack(Attack):
         if not partials:
             return super().compute(inputs, context=context)
 
-        if self._active_handle is None or self._flat_shape is None or self._like_template is None:
+        if (
+            self._active_handle is None
+            or self._flat_shape is None
+            or self._like_template is None
+        ):
             raise RuntimeError("EmpireAttack missing handle state for reduction.")
 
         total = None
@@ -134,7 +138,9 @@ class EmpireAttack(Attack):
             try:
                 part_sum, part_count = item
             except Exception as exc:  # pragma: no cover
-                raise ValueError(f"EmpireAttack received malformed partial at index {idx}: {item!r}") from exc
+                raise ValueError(
+                    f"EmpireAttack received malformed partial at index {idx}: {item!r}"
+                ) from exc
             if part_count <= 0:
                 continue
             part_arr = np.asarray(part_sum, dtype=np.float64)
@@ -166,7 +172,9 @@ class EmpireAttack(Attack):
         return list(grads)
 
 
-def _empire_partial_sum(handle: SharedTensorHandle, start: int, end: int) -> Tuple[np.ndarray, int]:
+def _empire_partial_sum(
+    handle: SharedTensorHandle, start: int, end: int
+) -> Tuple[np.ndarray, int]:
     if start >= end:
         raise ValueError("EmpireAttack subtasks require at least one gradient.")
     with open_tensor(handle) as flat:

@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import cast
 
 import pytest
-
 from byzpy.engine.graph.graph import ComputationGraph, GraphNode, graph_input
 from byzpy.engine.graph.operator import Operator
 from byzpy.engine.graph.scheduler import NodeScheduler

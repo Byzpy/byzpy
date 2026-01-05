@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """
 Transport implementation backed by simple TCP mailboxes.
 Suitable for local/loopback simulations; not optimized for production.

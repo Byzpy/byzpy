@@ -9,6 +9,7 @@ The runner is intentionally simple (blocking loop with periodic message/command
 polling) to avoid entangling with the existing event-loop orchestration. It can
 be extended later to host a NodeScheduler or richer control logic.
 """
+
 from __future__ import annotations
 
 import multiprocessing as mp
@@ -20,7 +21,6 @@ from typing import Any, Callable, Optional
 
 import cloudpickle
 
-
 # --------------------------- Runner process loop ---------------------------
 
 
@@ -30,7 +30,9 @@ class _Command:
     payload: Any = None
 
 
-def _runner_main(cmd_q: mp.Queue, inbox_q: mp.Queue, result_q: mp.Queue, blob: bytes) -> None:
+def _runner_main(
+    cmd_q: mp.Queue, inbox_q: mp.Queue, result_q: mp.Queue, blob: bytes
+) -> None:
     step_fn, msg_handler, init_state = cloudpickle.loads(blob)
     state = init_state if init_state is not None else {}
     auto = False
@@ -108,7 +110,10 @@ class NodeRunner:
         self._inbox_q: mp.Queue = mp.Queue()
         self._result_q: mp.Queue = mp.Queue()
         payload = cloudpickle.dumps((step_fn, msg_handler, init_state))
-        self._proc = mp.Process(target=_runner_main, args=(self._cmd_q, self._inbox_q, self._result_q, payload))
+        self._proc = mp.Process(
+            target=_runner_main,
+            args=(self._cmd_q, self._inbox_q, self._result_q, payload),
+        )
         self._pump_thread: threading.Thread | None = None
         self._pump_stop = threading.Event()
 

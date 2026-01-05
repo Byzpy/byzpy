@@ -1,11 +1,14 @@
 from __future__ import annotations
-import asyncio, concurrent.futures, uuid
+
+import asyncio
+import concurrent.futures
+import uuid
 from typing import Any, Dict, Optional
 
 from ..base import ActorBackend
 from ..channels import Endpoint
 from ..router import channel_router
-from ..transports import ucx, tcp
+from ..transports import tcp, ucx
 
 
 class ThreadActorBackend(ActorBackend):
@@ -21,12 +24,18 @@ class ThreadActorBackend(ActorBackend):
         if self._loop is None:
             self._loop = asyncio.get_running_loop()
 
-    async def construct(self, cls_or_factory: Any, *, args: tuple, kwargs: dict) -> None:
+    async def construct(
+        self, cls_or_factory: Any, *, args: tuple, kwargs: dict
+    ) -> None:
         loop = self._loop or asyncio.get_running_loop()
 
         def _build():
             target = cls_or_factory
-            return target(*args, **kwargs) if not isinstance(target, type) else target(*args, **kwargs)
+            return (
+                target(*args, **kwargs)
+                if not isinstance(target, type)
+                else target(*args, **kwargs)
+            )
 
         self._obj = await loop.run_in_executor(self._pool, _build)
 
@@ -56,7 +65,9 @@ class ThreadActorBackend(ActorBackend):
         q = self._queues.setdefault(name, asyncio.Queue())
         await q.put((from_ep, payload))
 
-    async def chan_put(self, *, from_ep: Endpoint, to_ep: Endpoint, name: str, payload: Any) -> None:
+    async def chan_put(
+        self, *, from_ep: Endpoint, to_ep: Endpoint, name: str, payload: Any
+    ) -> None:
         if to_ep.scheme == "thread":
             if to_ep.actor_id == self._actor_id:
                 await self._deliver_local(name, from_ep, payload)
@@ -71,28 +82,37 @@ class ThreadActorBackend(ActorBackend):
             peer = channel_router.resolve("process", to_ep.actor_id)
             if peer is None:
                 raise RuntimeError(f"no local process actor {to_ep.actor_id}")
-            await peer.chan_put(from_ep=from_ep, to_ep=to_ep, name=name, payload=payload)
+            await peer.chan_put(
+                from_ep=from_ep, to_ep=to_ep, name=name, payload=payload
+            )
             return
 
         if to_ep.scheme == "gpu":
             peer = channel_router.resolve("gpu", to_ep.actor_id)
             if peer is None:
                 raise RuntimeError(f"no local gpu actor {to_ep.actor_id}")
-            await peer.chan_put(from_ep=from_ep, to_ep=to_ep, name=name, payload=payload)
+            await peer.chan_put(
+                from_ep=from_ep, to_ep=to_ep, name=name, payload=payload
+            )
             return
 
         if to_ep.scheme == "ucx":
             if not ucx.have_ucx():
-                raise RuntimeError("UCX requested but UCX is not available (need ucxx or ucp)")
+                raise RuntimeError(
+                    "UCX requested but UCX is not available (need ucxx or ucp)"
+                )
             host, port_str = to_ep.address.rsplit(":", 1)
 
             async def _op(e):
-                await ucx.send_control(e, {
-                    "op": "chan_put",
-                    "from": from_ep.__dict__,
-                    "to": to_ep.__dict__,
-                    "name": name,
-                })
+                await ucx.send_control(
+                    e,
+                    {
+                        "op": "chan_put",
+                        "from": from_ep.__dict__,
+                        "to": to_ep.__dict__,
+                        "name": name,
+                    },
+                )
                 tag, desc = ucx.pack_payload(payload)
                 await ucx.send_payload(e, tag, desc, payload)
                 rep = await ucx.recv_control(e)
@@ -114,7 +134,9 @@ class ThreadActorBackend(ActorBackend):
 
         raise RuntimeError(f"ThreadActorBackend cannot route to {to_ep.scheme!r}")
 
-    async def chan_get(self, *, ep: Endpoint, name: str, timeout: Optional[float]) -> Any:
+    async def chan_get(
+        self, *, ep: Endpoint, name: str, timeout: Optional[float]
+    ) -> Any:
         if ep.scheme == "thread" and ep.actor_id == self._actor_id:
             q = self._queues.setdefault(name, asyncio.Queue())
             if timeout is None:
@@ -128,11 +150,21 @@ class ThreadActorBackend(ActorBackend):
 
         if ep.scheme == "ucx":
             if not ucx.have_ucx():
-                raise RuntimeError("UCX requested but UCX is not available (need ucxx or ucp)")
+                raise RuntimeError(
+                    "UCX requested but UCX is not available (need ucxx or ucp)"
+                )
             host, port_str = ep.address.rsplit(":", 1)
 
             async def _op(e):
-                await ucx.send_control(e, {"op": "chan_get", "name": name, "timeout": timeout, "actor_id": ep.actor_id})
+                await ucx.send_control(
+                    e,
+                    {
+                        "op": "chan_get",
+                        "name": name,
+                        "timeout": timeout,
+                        "actor_id": ep.actor_id,
+                    },
+                )
                 rep = await ucx.recv_control(e)
                 if not rep.get("ok", False):
                     raise RuntimeError(rep)

@@ -9,6 +9,7 @@ class SubTask:
     """
     Unit of work that can be scheduled on a worker actor.
     """
+
     fn: Callable[..., Any]
     args: Sequence[Any] = field(default_factory=tuple)
     kwargs: Mapping[str, Any] = field(default_factory=dict)

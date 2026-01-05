@@ -16,7 +16,9 @@ class CallableOp(Operator):
 
     name = "callable"
 
-    def __init__(self, fn: Callable[..., Any], *, input_mapping: Mapping[str, str]) -> None:
+    def __init__(
+        self, fn: Callable[..., Any], *, input_mapping: Mapping[str, str]
+    ) -> None:
         self.fn = fn
         self.input_mapping = dict(input_mapping)
 
@@ -24,7 +26,9 @@ class CallableOp(Operator):
         kwargs: Dict[str, Any] = {}
         for param, source in self.input_mapping.items():
             if source not in inputs:
-                raise KeyError(f"CallableOp missing required input {source!r} for parameter {param!r}")
+                raise KeyError(
+                    f"CallableOp missing required input {source!r} for parameter {param!r}"
+                )
             kwargs[param] = inputs[source]
         return self.fn(**kwargs)
 
@@ -38,7 +42,9 @@ class RemoteCallableOp(Operator):
     name = "remote_callable"
     supports_subtasks = True
 
-    def __init__(self, fn: Callable[..., Any], *, input_mapping: Mapping[str, str]) -> None:
+    def __init__(
+        self, fn: Callable[..., Any], *, input_mapping: Mapping[str, str]
+    ) -> None:
         self.fn = fn
         self.input_mapping = dict(input_mapping)
 

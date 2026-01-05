@@ -10,21 +10,33 @@ import time
 from dataclasses import dataclass
 
 import torch
-
-from byzpy import run_operator, OperatorExecutor
+from byzpy import OperatorExecutor, run_operator
 from byzpy.attacks.sign_flip import SignFlipAttack
 from byzpy.engine.graph.pool import ActorPoolConfig
 
 try:
-    from benchmarks.pytorch._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+    from benchmarks.pytorch._worker_args import (
+        DEFAULT_WORKER_COUNTS,
+        coerce_worker_counts,
+        parse_worker_counts,
+    )
 except ImportError:
     try:
-        from ..pytorch._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+        from ..pytorch._worker_args import (
+            DEFAULT_WORKER_COUNTS,
+            coerce_worker_counts,
+            parse_worker_counts,
+        )
     except ImportError:
         import sys
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).parent.parent / "pytorch"))
-        from _worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts  # type: ignore
+        from _worker_args import (  # type: ignore
+            DEFAULT_WORKER_COUNTS,
+            coerce_worker_counts,
+            parse_worker_counts,
+        )
 
 
 @dataclass(frozen=True)
@@ -38,9 +50,15 @@ class BenchmarkRun:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Benchmark the SignFlip attack using simplified API.")
-    parser.add_argument("--grad-dim", type=int, default=262144, help="Gradient dimension.")
-    parser.add_argument("--chunk-size", type=int, default=8192, help="Coordinates per subtask.")
+    parser = argparse.ArgumentParser(
+        description="Benchmark the SignFlip attack using simplified API."
+    )
+    parser.add_argument(
+        "--grad-dim", type=int, default=262144, help="Gradient dimension."
+    )
+    parser.add_argument(
+        "--chunk-size", type=int, default=8192, help="Coordinates per subtask."
+    )
     parser.add_argument("--scale", type=float, default=-1.0, help="Scaling factor.")
     default_workers = ",".join(str(count) for count in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
@@ -49,9 +67,15 @@ def _parse_args() -> argparse.Namespace:
         default=default_workers,
         help=f"Comma/space separated worker counts for ActorPool runs (default: {default_workers}).",
     )
-    parser.add_argument("--pool-backend", type=str, default="process", help="Actor backend.")
-    parser.add_argument("--warmup", type=int, default=1, help="Warm-up iterations per mode.")
-    parser.add_argument("--repeat", type=int, default=3, help="Timed iterations per mode.")
+    parser.add_argument(
+        "--pool-backend", type=str, default="process", help="Actor backend."
+    )
+    parser.add_argument(
+        "--warmup", type=int, default=1, help="Warm-up iterations per mode."
+    )
+    parser.add_argument(
+        "--repeat", type=int, default=3, help="Timed iterations per mode."
+    )
     parser.add_argument("--seed", type=int, default=0, help="PRNG seed.")
     args = parser.parse_args()
     args.pool_workers = parse_worker_counts(args.pool_workers)
@@ -64,7 +88,9 @@ def _make_gradient(dim: int, seed: int) -> torch.Tensor:
     return torch.randn(dim, generator=gen)
 
 
-def _time_direct(attack: SignFlipAttack, grad: torch.Tensor, *, iterations: int, warmup: int) -> float:
+def _time_direct(
+    attack: SignFlipAttack, grad: torch.Tensor, *, iterations: int, warmup: int
+) -> float:
     for _ in range(warmup):
         attack.apply(base_grad=grad)
     start = time.perf_counter()
@@ -82,8 +108,14 @@ async def _time_run_operator(
     warmup: int,
 ) -> float:
     """Time run_operator() for single-threaded case (no pool overhead)."""
+
     async def _run_once():
-        await run_operator(operator=operator, inputs={"base_grad": grad}, pool_config=pool_config, input_keys=("base_grad",))
+        await run_operator(
+            operator=operator,
+            inputs={"base_grad": grad},
+            pool_config=pool_config,
+            input_keys=("base_grad",),
+        )
 
     for _ in range(warmup):
         await _run_once()
@@ -103,12 +135,13 @@ async def _time_executor(
     warmup: int,
 ) -> float:
     """Time OperatorExecutor with pool (reuses pool across iterations)."""
-    executor = OperatorExecutor(operator, pool_config=pool_config, input_keys=("base_grad",))
+    executor = OperatorExecutor(
+        operator, pool_config=pool_config, input_keys=("base_grad",)
+    )
     async with executor:
 
         for _ in range(warmup):
             await executor.run({"base_grad": grad})
-
 
         start = time.perf_counter()
         for _ in range(iterations):
@@ -117,12 +150,13 @@ async def _time_executor(
 
 
 async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
-    worker_counts = coerce_worker_counts(getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS))
+    worker_counts = coerce_worker_counts(
+        getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS)
+    )
     grad = _make_gradient(args.grad_dim, args.seed)
     attack = SignFlipAttack(scale=args.scale, chunk_size=args.chunk_size)
 
     direct = _time_direct(attack, grad, iterations=args.repeat, warmup=args.warmup)
-
 
     single = await _time_run_operator(
         attack,
@@ -136,7 +170,6 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
         BenchmarkRun("Direct attack (PyTorch)", direct),
         BenchmarkRun("Single-thread (run_operator)", single),
     ]
-
 
     for workers in worker_counts:
         pool_config = ActorPoolConfig(backend=args.pool_backend, count=workers)

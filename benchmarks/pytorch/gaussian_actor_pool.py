@@ -11,16 +11,23 @@ from dataclasses import dataclass
 from typing import Sequence
 
 import torch
-
 from byzpy.attacks.gaussian import GaussianAttack
 from byzpy.engine.graph.ops import make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
 
 try:
-    from ._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+    from ._worker_args import (
+        DEFAULT_WORKER_COUNTS,
+        coerce_worker_counts,
+        parse_worker_counts,
+    )
 except ImportError:
-    from _worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+    from _worker_args import (
+        DEFAULT_WORKER_COUNTS,
+        coerce_worker_counts,
+        parse_worker_counts,
+    )
 
 
 @dataclass(frozen=True)
@@ -36,10 +43,14 @@ class BenchmarkRun:
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark Gaussian attack chunking.")
     parser.add_argument("--num-grads", type=int, default=64, help="Honest gradients")
-    parser.add_argument("--grad-dim", type=int, default=65536, help="Gradient dimension")
+    parser.add_argument(
+        "--grad-dim", type=int, default=65536, help="Gradient dimension"
+    )
     parser.add_argument("--mu", type=float, default=0.0, help="Gaussian mean")
     parser.add_argument("--sigma", type=float, default=1.0, help="Gaussian stddev")
-    parser.add_argument("--chunk-size", type=int, default=16384, help="Features per subtask")
+    parser.add_argument(
+        "--chunk-size", type=int, default=16384, help="Features per subtask"
+    )
     default_workers = ",".join(str(count) for count in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
         "--pool-workers",
@@ -62,7 +73,13 @@ def _make_grads(n: int, dim: int, seed: int) -> list[torch.Tensor]:
     return [torch.randn(dim, generator=gen) for _ in range(n)]
 
 
-def _time_direct(attack: GaussianAttack, grads: Sequence[torch.Tensor], *, iterations: int, warmup: int) -> float:
+def _time_direct(
+    attack: GaussianAttack,
+    grads: Sequence[torch.Tensor],
+    *,
+    iterations: int,
+    warmup: int,
+) -> float:
     for _ in range(warmup):
         attack.apply(honest_grads=grads)
     start = time.perf_counter()
@@ -91,15 +108,21 @@ async def _time_scheduler(
 
 
 async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
-    worker_counts = coerce_worker_counts(getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS))
+    worker_counts = coerce_worker_counts(
+        getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS)
+    )
     grads = _make_grads(args.num_grads, args.grad_dim, args.seed)
-    attack = GaussianAttack(mu=args.mu, sigma=args.sigma, seed=args.seed, chunk_size=args.chunk_size)
+    attack = GaussianAttack(
+        mu=args.mu, sigma=args.sigma, seed=args.seed, chunk_size=args.chunk_size
+    )
 
     direct = _time_direct(attack, grads, iterations=args.repeat, warmup=args.warmup)
 
     graph = make_single_operator_graph(
         node_name="gaussian",
-        operator=GaussianAttack(mu=args.mu, sigma=args.sigma, seed=args.seed, chunk_size=args.chunk_size),
+        operator=GaussianAttack(
+            mu=args.mu, sigma=args.sigma, seed=args.seed, chunk_size=args.chunk_size
+        ),
         input_keys=("honest_grads",),
     )
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Optional
 
-from .._wire import send_obj, recv_obj
+from .._wire import recv_obj, send_obj
 
 __all__ = ["chan_put", "chan_get"]
 
@@ -32,13 +32,16 @@ async def chan_put(
     name: str,
     payload: Any,
 ) -> None:
-    rep = await _request(address, {
-        "op": "chan_put",
-        "from": getattr(from_ep, "__dict__", from_ep),
-        "to": getattr(to_ep, "__dict__", to_ep),
-        "name": name,
-        "payload": payload,
-    })
+    rep = await _request(
+        address,
+        {
+            "op": "chan_put",
+            "from": getattr(from_ep, "__dict__", from_ep),
+            "to": getattr(to_ep, "__dict__", to_ep),
+            "name": name,
+            "payload": payload,
+        },
+    )
     if not rep.get("ok", False):
         raise RuntimeError(rep)
 
@@ -50,12 +53,15 @@ async def chan_get(
     timeout: Optional[float],
     actor_id: str,
 ) -> Any:
-    rep = await _request(address, {
-        "op": "chan_get",
-        "name": name,
-        "timeout": timeout,
-        "actor_id": actor_id,
-    })
+    rep = await _request(
+        address,
+        {
+            "op": "chan_get",
+            "name": name,
+            "timeout": timeout,
+            "actor_id": actor_id,
+        },
+    )
     if rep.get("ok", False):
         return rep["payload"]
     raise RuntimeError(rep)

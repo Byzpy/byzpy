@@ -7,7 +7,9 @@ registration of live backends and provides lightweight lookup helpers that
 any backend can use without importing its peers.  It intentionally avoids
 referencing concrete backend classes to remain dependency-free.
 """
+
 from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
@@ -21,6 +23,7 @@ class BackendRecord:
 
 class ChannelRouter:
     """Process-local registry for actor backends keyed by scheme/actor_id."""
+
     def __init__(self) -> None:
         self._backends: Dict[str, Dict[str, BackendRecord]] = {}
 
@@ -46,6 +49,7 @@ class ChannelRouter:
         if rec is None:
             return None
         return rec.backend
+
 
 # Global singleton used by all backends
 channel_router = ChannelRouter()

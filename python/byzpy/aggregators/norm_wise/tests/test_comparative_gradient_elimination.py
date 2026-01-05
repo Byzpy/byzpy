@@ -1,14 +1,13 @@
 import torch
-
-from byzpy.aggregators.norm_wise.comparative_gradient_elimination import ComparativeGradientElimination
+from byzpy.aggregators.norm_wise.comparative_gradient_elimination import (
+    ComparativeGradientElimination,
+)
 from byzpy.engine.graph.operator import OpContext
 from byzpy.engine.storage.shared_store import cleanup_tensor
 
 
 def test_cge_direct_matches_chunked():
-    grads = [
-        torch.randn(1024) for _ in range(16)
-    ]
+    grads = [torch.randn(1024) for _ in range(16)]
     direct = ComparativeGradientElimination(f=3).aggregate(grads)
 
     chunked = ComparativeGradientElimination(f=3, chunk_size=128)

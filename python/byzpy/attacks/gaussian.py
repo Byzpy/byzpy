@@ -1,20 +1,21 @@
 from __future__ import annotations
+
 from typing import Any, Iterable, List, Optional, Sequence
+
 import numpy as np
 import torch
 import torch.nn as nn
-
-from byzpy.attacks.base import Attack
 from byzpy.aggregators._chunking import select_adaptive_chunk_size
+from byzpy.aggregators.coordinate_wise._tiling import flatten_gradients
+from byzpy.attacks.base import Attack
 from byzpy.configs.backend import get_backend
 from byzpy.engine.graph.subtask import SubTask
 from byzpy.engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
-from byzpy.aggregators.coordinate_wise._tiling import flatten_gradients
 
 
 def _to_like(arr: np.ndarray, like: Any) -> Any:
@@ -42,7 +43,14 @@ class GaussianAttack(Attack):
     supports_subtasks = True
     max_subtasks_inflight = 0
 
-    def __init__(self, mu: float = 0.0, sigma: float = 1.0, *, seed: int | None = None, chunk_size: int = 8192) -> None:
+    def __init__(
+        self,
+        mu: float = 0.0,
+        sigma: float = 1.0,
+        *,
+        seed: int | None = None,
+        chunk_size: int = 8192,
+    ) -> None:
         self.mu = float(mu)
         if sigma < 0:
             raise ValueError("sigma must be >= 0")
@@ -84,13 +92,17 @@ class GaussianAttack(Attack):
         feature_dim = flat.shape[1]
 
         rng = _make_rng(self.seed)
-        buffer = rng.normal(loc=self.mu, scale=self.sigma, size=feature_dim).astype(np.float64, copy=False)
+        buffer = rng.normal(loc=self.mu, scale=self.sigma, size=feature_dim).astype(
+            np.float64, copy=False
+        )
         handle = register_tensor(buffer)
         self._handle = handle
 
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
-        chunk = select_adaptive_chunk_size(feature_dim, self.chunk_size, pool_size=pool_size, allow_small_chunks=True)
+        chunk = select_adaptive_chunk_size(
+            feature_dim, self.chunk_size, pool_size=pool_size, allow_small_chunks=True
+        )
         starts = list(range(0, feature_dim, chunk))
 
         def _iter() -> Iterable[SubTask]:
@@ -108,7 +120,11 @@ class GaussianAttack(Attack):
     def reduce_subtasks(self, partials, inputs, *, context):  # type: ignore[override]
         if not partials:
             return super().compute(inputs, context=context)
-        if self._handle is None or self._flat_shape is None or self._like_template is None:
+        if (
+            self._handle is None
+            or self._flat_shape is None
+            or self._like_template is None
+        ):
             raise RuntimeError("GaussianAttack missing state for reduction.")
 
         try:

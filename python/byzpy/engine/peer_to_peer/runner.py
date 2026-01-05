@@ -4,6 +4,7 @@ Refactored P2P runner using DecentralizedNode infrastructure.
 This replaces the prototype NodeRunner-based implementation with a production
 implementation using DecentralizedCluster and DecentralizedNode.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -11,20 +12,21 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import torch
 
-from ..node.cluster import DecentralizedCluster
-from ..node.decentralized import DecentralizedNode
-from ..node.application import HonestNodeApplication, ByzantineNodeApplication
-from ..node.context import ProcessContext, NodeContext
-from ..node.actors import HonestNodeActor, ByzantineNodeActor
-from ..peer_to_peer.topology import Topology
-from ..graph.pool import ActorPoolConfig
-from ..graph.ops import CallableOp, make_single_operator_graph
-from ..graph.graph import ComputationGraph, GraphNode, GraphInput
 from ...aggregators.coordinate_wise import CoordinateWiseMedian
+from ..graph.graph import ComputationGraph, GraphInput, GraphNode
+from ..graph.ops import CallableOp, make_single_operator_graph
+from ..graph.pool import ActorPoolConfig
+from ..node.actors import ByzantineNodeActor, HonestNodeActor
+from ..node.application import ByzantineNodeApplication, HonestNodeApplication
+from ..node.cluster import DecentralizedCluster
+from ..node.context import NodeContext, ProcessContext
+from ..node.decentralized import DecentralizedNode
+from ..peer_to_peer.topology import Topology
 
 
 class _PicklableActorCall:
     """Wrapper that allows calling actor methods without capturing actor in closure."""
+
     def __init__(self, actor_key: str):
         self.actor_key = actor_key
 
@@ -34,15 +36,20 @@ class _PicklableActorCall:
             raise RuntimeError(f"Actor {self.actor_key} not found in registry")
         return await actor.p2p_half_step(lr)
 
-    async def p2p_broadcast_vector(self, neighbor_vectors=None, like=None, actor_registry: Dict[str, Any]=None):
+    async def p2p_broadcast_vector(
+        self, neighbor_vectors=None, like=None, actor_registry: Dict[str, Any] = None
+    ):
         actor = actor_registry.get(self.actor_key) if actor_registry else None
         if actor is None:
             raise RuntimeError(f"Actor {self.actor_key} not found in registry")
-        return await actor.p2p_broadcast_vector(neighbor_vectors=neighbor_vectors, like=like)
+        return await actor.p2p_broadcast_vector(
+            neighbor_vectors=neighbor_vectors, like=like
+        )
 
 
 _NODE_OBJECT_REGISTRY: Dict[str, Any] = {}
 _ACTOR_REGISTRY: Dict[str, Any] = {}
+
 
 def _create_honest_node_application(
     actor: HonestNodeActor,
@@ -59,12 +66,12 @@ def _create_honest_node_application(
     # For ThreadActorBackend, the node object is stored in _obj
     node_key = f"honest_{node_id}"
     try:
-        if hasattr(actor, '_ref') and hasattr(actor._ref, '_backend'):
+        if hasattr(actor, "_ref") and hasattr(actor._ref, "_backend"):
             backend = actor._ref._backend
-            if hasattr(backend, '_obj') and backend._obj is not None:
+            if hasattr(backend, "_obj") and backend._obj is not None:
                 # Store the actual node object (picklable)
                 _NODE_OBJECT_REGISTRY[node_key] = backend._obj
-    except:
+    except Exception:
         pass
 
     # Also store actor for in-process direct calls
@@ -73,14 +80,18 @@ def _create_honest_node_application(
     # Half-step pipeline - import registry inside function to avoid closure capture
     async def half_step(lr: float):
         # Import registry inside function (not captured in closure)
-        from byzpy.engine.peer_to_peer.runner import _NODE_OBJECT_REGISTRY, _ACTOR_REGISTRY
+        from byzpy.engine.peer_to_peer.runner import (
+            _ACTOR_REGISTRY,
+            _NODE_OBJECT_REGISTRY,
+        )
+
         # Try node object registry (works in subprocess after unpickling)
         node_obj = _NODE_OBJECT_REGISTRY.get(node_key)
         if node_obj is not None:
             # p2p_half_step is synchronous, returns Tensor directly
             result = node_obj.p2p_half_step(lr)
             # If it's a coroutine (from ActorRef), await it; otherwise return directly
-            if hasattr(result, '__await__'):
+            if hasattr(result, "__await__"):
                 return await result
             return result
         # Fallback to actor (in-process only) - ActorRef makes it async
@@ -125,37 +136,51 @@ def _create_byzantine_node_application(
     # Extract underlying node object from actor backend (this can be pickled)
     node_key = f"byz_{node_id}"
     try:
-        if hasattr(actor, '_ref') and hasattr(actor._ref, '_backend'):
+        if hasattr(actor, "_ref") and hasattr(actor._ref, "_backend"):
             backend = actor._ref._backend
-            if hasattr(backend, '_obj') and backend._obj is not None:
+            if hasattr(backend, "_obj") and backend._obj is not None:
                 # Store the actual node object (picklable)
                 _NODE_OBJECT_REGISTRY[node_key] = backend._obj
-    except:
+    except Exception:
         pass
 
     # Also store actor for in-process direct calls
     _ACTOR_REGISTRY[node_key] = actor
 
     # Broadcast pipeline - import registry inside function to avoid closure capture
-    async def broadcast_vector(neighbor_vectors: Optional[List[torch.Tensor]] = None, like: Optional[torch.Tensor] = None):
+    async def broadcast_vector(
+        neighbor_vectors: Optional[List[torch.Tensor]] = None,
+        like: Optional[torch.Tensor] = None,
+    ):
         # Import registry inside function (not captured in closure)
-        from byzpy.engine.peer_to_peer.runner import _NODE_OBJECT_REGISTRY, _ACTOR_REGISTRY
+        from byzpy.engine.peer_to_peer.runner import (
+            _ACTOR_REGISTRY,
+            _NODE_OBJECT_REGISTRY,
+        )
+
         # Try node object registry (works in subprocess after unpickling)
         node_obj = _NODE_OBJECT_REGISTRY.get(node_key)
         if node_obj is not None:
             # p2p_broadcast_vector is synchronous, returns Tensor directly
-            result = node_obj.p2p_broadcast_vector(neighbor_vectors=neighbor_vectors, like=like)
+            result = node_obj.p2p_broadcast_vector(
+                neighbor_vectors=neighbor_vectors, like=like
+            )
             # If it's a coroutine (from ActorRef), await it; otherwise return directly
-            if hasattr(result, '__await__'):
+            if hasattr(result, "__await__"):
                 return await result
             return result
         # Fallback to actor (in-process only) - ActorRef makes it async
         actor_ref = _ACTOR_REGISTRY.get(node_key)
         if actor_ref is not None:
-            return await actor_ref.p2p_broadcast_vector(neighbor_vectors=neighbor_vectors, like=like)
+            return await actor_ref.p2p_broadcast_vector(
+                neighbor_vectors=neighbor_vectors, like=like
+            )
         raise RuntimeError(f"Node object {node_key} not found in registry")
 
-    broadcast_op = CallableOp(broadcast_vector, input_mapping={"neighbor_vectors": "neighbor_vectors", "like": "like"})
+    broadcast_op = CallableOp(
+        broadcast_vector,
+        input_mapping={"neighbor_vectors": "neighbor_vectors", "like": "like"},
+    )
     broadcast_graph = make_single_operator_graph(
         node_name="broadcast",
         operator=broadcast_op,
@@ -186,7 +211,9 @@ class DecentralizedPeerToPeer:
         self.context_factory = context_factory
         self._node_applications: Dict[str, Any] = {}
         self._decentralized_nodes: Dict[str, DecentralizedNode] = {}
-        self._gradient_cache: Dict[str, List[torch.Tensor]] = {}  # Cache gradients received per node
+        self._gradient_cache: Dict[str, List[torch.Tensor]] = (
+            {}
+        )  # Cache gradients received per node
 
     @property
     def cluster(self):
@@ -227,9 +254,12 @@ class DecentralizedPeerToPeer:
                         if nid not in self._gradient_cache:
                             self._gradient_cache[nid] = []
                         self._gradient_cache[nid].append(payload.get("vector"))
+
                     return on_gradient
 
-                node.register_message_handler("gradient", make_gradient_handler(node_id, node))
+                node.register_message_handler(
+                    "gradient", make_gradient_handler(node_id, node)
+                )
             else:
                 # Byzantine node
                 byz_idx = idx - len(self.honest)
@@ -251,9 +281,12 @@ class DecentralizedPeerToPeer:
                         if nid not in self._gradient_cache:
                             self._gradient_cache[nid] = []
                         self._gradient_cache[nid].append(payload.get("vector"))
+
                     return on_gradient
 
-                node.register_message_handler("gradient", make_byz_handler(node_id, node))
+                node.register_message_handler(
+                    "gradient", make_byz_handler(node_id, node)
+                )
 
         # Start all nodes
         await self._cluster.start_all()
@@ -317,29 +350,37 @@ class DecentralizedPeerToPeer:
 
                     # Generate malicious vector
                     # Get node object from registry (works across processes)
-                    from byzpy.engine.peer_to_peer.runner import _NODE_OBJECT_REGISTRY, _ACTOR_REGISTRY
+                    from byzpy.engine.peer_to_peer.runner import (
+                        _ACTOR_REGISTRY,
+                        _NODE_OBJECT_REGISTRY,
+                    )
+
                     node_key = f"byz_{node_id}"
                     node_obj = _NODE_OBJECT_REGISTRY.get(node_key)
                     if node_obj is not None:
                         malicious = node_obj.p2p_broadcast_vector(
                             neighbor_vectors=neighbor_vecs if neighbor_vecs else None,
-                            like=template
+                            like=template,
                         )
                         # Check if result is awaitable
-                        if hasattr(malicious, '__await__'):
+                        if hasattr(malicious, "__await__"):
                             malicious = await malicious
                     else:
                         actor_ref = _ACTOR_REGISTRY.get(node_key)
                         if actor_ref is not None:
                             malicious = await actor_ref.p2p_broadcast_vector(
-                                neighbor_vectors=neighbor_vecs if neighbor_vecs else None,
-                                like=template
+                                neighbor_vectors=(
+                                    neighbor_vecs if neighbor_vecs else None
+                                ),
+                                like=template,
                             )
                         else:
                             # Fallback: use actor directly
                             malicious = await actor.p2p_broadcast_vector(
-                                neighbor_vectors=neighbor_vecs if neighbor_vecs else None,
-                                like=template
+                                neighbor_vectors=(
+                                    neighbor_vecs if neighbor_vecs else None
+                                ),
+                                like=template,
                             )
                     await node.broadcast_message("gradient", {"vector": malicious})
                 # If no template and no neighbor vectors, skip byzantine broadcast for this round

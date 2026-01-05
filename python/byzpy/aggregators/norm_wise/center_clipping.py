@@ -1,22 +1,25 @@
 from __future__ import annotations
-from typing import Any, Sequence
+
 import math
+from typing import Any, Sequence
+
 import numpy as np
 
-from ..base import Aggregator
-from .._chunking import select_adaptive_chunk_size
 from ...configs.backend import get_backend
 from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
+from .._chunking import select_adaptive_chunk_size
+from ..base import Aggregator
 from ..coordinate_wise._tiling import flatten_gradients
 
 try:  # optional torch dependency for conversion
     import torch
+
     _HAS_TORCH = True
 except Exception:  # pragma: no cover
     torch = None  # type: ignore
@@ -71,6 +74,7 @@ class CenteredClipping(Aggregator):
     .. [1] Karimireddy, S. P., He, L., & Jaggi, M. (2021). Learning from
        history for Byzantine robust optimization. ICML.
     """
+
     name = "centered-clipping"
     supports_barriered_subtasks = True
     max_subtasks_inflight = 0
@@ -141,8 +145,8 @@ class CenteredClipping(Aggregator):
 
         for _ in range(self.M):
             diff = X - v  # (n, ...)
-            dist = be.sqrt(be.sum(diff * diff, axis=axes_feat))              # (n,)
-            dist = be.maximum(dist, dist * 0 + self.eps)                      # clamp
+            dist = be.sqrt(be.sum(diff * diff, axis=axes_feat))  # (n,)
+            dist = be.maximum(dist, dist * 0 + self.eps)  # clamp
 
             alpha = be.minimum(dist * 0 + 1.0, (dist * 0 + self.c_tau) / dist)  # (n,)
             alpha_b = be.reshape(alpha, (alpha.shape[0],) + (1,) * (X.ndim - 1))
@@ -182,7 +186,16 @@ class CenteredClipping(Aggregator):
                     subtasks.append(
                         SubTask(
                             fn=_centered_clipping_chunk,
-                            args=(grad_handle, vec_handle, contrib_handle, chunk_id, start, end, self.c_tau, self.eps),
+                            args=(
+                                grad_handle,
+                                vec_handle,
+                                contrib_handle,
+                                chunk_id,
+                                start,
+                                end,
+                                self.c_tau,
+                                self.eps,
+                            ),
                             kwargs={},
                             name=f"cc_chunk_{iteration}_{chunk_id}",
                         )
@@ -227,7 +240,9 @@ def _centered_clipping_chunk(
     c_tau: float,
     eps: float,
 ) -> int:
-    with open_tensor(grad_handle) as flat, open_tensor(vec_handle) as vec, open_tensor(contrib_handle) as contribs:
+    with open_tensor(grad_handle) as flat, open_tensor(vec_handle) as vec, open_tensor(
+        contrib_handle
+    ) as contribs:
         data = np.array(flat, copy=False)
         vector = np.array(vec, copy=False)
         rows = data[start:end]

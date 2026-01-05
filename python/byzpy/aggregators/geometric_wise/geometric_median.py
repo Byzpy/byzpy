@@ -1,22 +1,25 @@
 from __future__ import annotations
+
 from typing import Any, Iterable, Sequence
+
 import numpy as np
 
-from ..base import Aggregator
-from .._chunking import select_adaptive_chunk_size
 from ...configs.backend import get_backend
-from ...engine.graph.subtask import SubTask
 from ...engine.graph.operator import OpContext
+from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
+from .._chunking import select_adaptive_chunk_size
+from ..base import Aggregator
 from ..coordinate_wise._tiling import flatten_gradients
 
 try:  # optional torch dependency
     import torch
+
     _HAS_TORCH = True
 except Exception:  # pragma: no cover
     torch = None  # type: ignore
@@ -33,6 +36,7 @@ class GeometricMedian(Aggregator):
 
     Minimizes sum_i ||x - g_i||_2. Uses backend ops via `get_backend()`.
     """
+
     name = "geometric-median"
     supports_barriered_subtasks = True
     max_subtasks_inflight = 0
@@ -93,7 +97,9 @@ class GeometricMedian(Aggregator):
             den = be.sum(w, axis=0)
             z = num / den
 
-            delta = be.sqrt(be.sum((z - z_prev) * (z - z_prev), axis=tuple(range(z.ndim))))
+            delta = be.sqrt(
+                be.sum((z - z_prev) * (z - z_prev), axis=tuple(range(z.ndim)))
+            )
             if _to_float(delta) <= self.tol:
                 break
 

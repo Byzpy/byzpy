@@ -1,26 +1,29 @@
 from __future__ import annotations
+
 import asyncio
+import os
+import sys
 from typing import List, Tuple
 
 import torch
 import torch.utils.data as data
 from torchvision import datasets, transforms
 
-import os
-import sys
-
 SCRIPT_DIR = os.path.dirname(__file__)
-PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir, os.pardir, os.pardir))
+PROJECT_ROOT = os.path.abspath(
+    os.path.join(SCRIPT_DIR, os.pardir, os.pardir, os.pardir)
+)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from byzpy.configs.actor import set_actor
-from byzpy.engine.node.actors import HonestNodeActor, ByzantineNodeActor
-from byzpy.engine.peer_to_peer.train import PeerToPeer
+from byzpy.engine.node.actors import ByzantineNodeActor, HonestNodeActor
 from byzpy.engine.peer_to_peer.topology import Topology
+from byzpy.engine.peer_to_peer.train import PeerToPeer
+
 from examples.p2p.nodes import (
-    DistributedP2PHonestNode,
     DistributedP2PByzNode,
+    DistributedP2PHonestNode,
     SmallCNN,
     select_pool_backend,
 )

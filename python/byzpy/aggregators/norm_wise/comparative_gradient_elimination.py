@@ -1,21 +1,24 @@
 from __future__ import annotations
+
 from typing import Any, Iterable, Sequence
+
 import numpy as np
 
-from ..base import Aggregator
-from .._chunking import select_adaptive_chunk_size
 from ...configs.backend import get_backend
 from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
+from .._chunking import select_adaptive_chunk_size
+from ..base import Aggregator
 from ..coordinate_wise._tiling import flatten_gradients
 
 try:  # optional torch dependency
     import torch
+
     _HAS_TORCH = True
 except Exception:  # pragma: no cover
     torch = None  # type: ignore
@@ -32,6 +35,7 @@ class ComparativeGradientElimination(Aggregator):
     Args (constructor):
         f: number of vectors to drop by norm (must be >= 0)
     """
+
     name = "comparative-gradient-elimination"
     supports_subtasks = True
     max_subtasks_inflight = 0
@@ -66,12 +70,12 @@ class ComparativeGradientElimination(Aggregator):
         X = be.stack([be.asarray(g, like=like) for g in gradients], axis=0)  # (n, ...)
 
         axes_feat = tuple(range(1, X.ndim))
-        norms = be.sqrt(be.sum(X * X, axis=axes_feat))                        # (n,)
+        norms = be.sqrt(be.sum(X * X, axis=axes_feat))  # (n,)
 
-        order = be.argsort(norms, axis=0)                                    # (n,)
-        keep_idx = order[: n - self.f]                                       # (n-f,)
+        order = be.argsort(norms, axis=0)  # (n,)
+        keep_idx = order[: n - self.f]  # (n-f,)
 
-        kept = be.index_select(X, axis=0, indices=keep_idx)                  # (n-f, ...)
+        kept = be.index_select(X, axis=0, indices=keep_idx)  # (n-f, ...)
         return be.mean(kept, axis=0)
 
     def create_subtasks(self, inputs, *, context):  # type: ignore[override]
@@ -91,7 +95,9 @@ class ComparativeGradientElimination(Aggregator):
         features = flat.shape[1]
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
-        chunk = select_adaptive_chunk_size(features, self.chunk_size, pool_size=pool_size)
+        chunk = select_adaptive_chunk_size(
+            features, self.chunk_size, pool_size=pool_size
+        )
 
         def _iter() -> Iterable[SubTask]:
             chunk_id = 0
@@ -112,7 +118,9 @@ class ComparativeGradientElimination(Aggregator):
             return super().compute(inputs, context=context)
 
         if self._active_handle is None or self._flat_shape is None or self._n is None:
-            raise RuntimeError("ComparativeGradientElimination missing state for reduction.")
+            raise RuntimeError(
+                "ComparativeGradientElimination missing state for reduction."
+            )
 
         n = self._n
         totals = np.zeros(n, dtype=np.float64)

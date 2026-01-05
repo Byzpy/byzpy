@@ -1,19 +1,24 @@
 from __future__ import annotations
 
 import asyncio
-import pytest
 
-from byzpy.engine.graph.graph import ComputationGraph, GraphNode, graph_input, GraphInput
+import pytest
+from byzpy.engine.graph.graph import (
+    ComputationGraph,
+    GraphInput,
+    GraphNode,
+    graph_input,
+)
 from byzpy.engine.graph.operator import Operator
 from byzpy.engine.graph.scheduler import MessageAwareNodeScheduler
 
-
 # Category 3: GraphInput Message Sources
+
 
 def test_graphinput_from_message_creates_message_source():
     """Verify GraphInput.from_message() creates a message source."""
     msg_input = GraphInput.from_message("test_msg")
-    assert hasattr(msg_input, 'message_type')
+    assert hasattr(msg_input, "message_type")
     assert msg_input.message_type == "test_msg"
     assert msg_input.field is None
 
@@ -28,6 +33,7 @@ def test_graphinput_from_message_with_field():
 @pytest.mark.asyncio
 async def test_graphinput_from_message_in_graph_execution():
     """Verify graph with message input waits for message."""
+
     class _DoubleOp(Operator):
         def compute(self, inputs, *, context):
             return inputs["x"] * 2
@@ -55,6 +61,7 @@ async def test_graphinput_from_message_in_graph_execution():
 @pytest.mark.asyncio
 async def test_graphinput_from_message_extracts_field():
     """Verify GraphInput.from_message() extracts specific field from message."""
+
     class _IdentityOp(Operator):
         def compute(self, inputs, *, context):
             return inputs["x"]
@@ -79,6 +86,7 @@ async def test_graphinput_from_message_extracts_field():
 @pytest.mark.asyncio
 async def test_graphinput_from_message_missing_field():
     """Verify GraphInput.from_message() handles missing field gracefully."""
+
     class _IdentityOp(Operator):
         def compute(self, inputs, *, context):
             return inputs["x"]
@@ -99,4 +107,3 @@ async def test_graphinput_from_message_missing_field():
     # Should raise KeyError or return None
     with pytest.raises((KeyError, TypeError)):
         await exec_task
-

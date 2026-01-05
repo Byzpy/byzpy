@@ -37,7 +37,13 @@ class NodeScheduler:
     >>> results = await scheduler.run({"gradients": gradients})
     """
 
-    def __init__(self, graph: ComputationGraph, *, pool: ActorPool | None = None, metadata: Optional[Mapping[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        graph: ComputationGraph,
+        *,
+        pool: ActorPool | None = None,
+        metadata: Optional[Mapping[str, Any]] = None,
+    ) -> None:
         self.graph = graph
         self.pool = pool
         self.metadata = dict(metadata or {})
@@ -54,21 +60,27 @@ class NodeScheduler:
             metadata = dict(self.metadata)
             if self.pool is not None:
                 metadata.setdefault("pool_size", self.pool.size)
-                metadata.setdefault("worker_affinities", tuple(self.pool.worker_affinities()))
+                metadata.setdefault(
+                    "worker_affinities", tuple(self.pool.worker_affinities())
+                )
             ctx = OpContext(node_name=node.name, metadata=metadata)
             result = await node.op.run(node_inputs, context=ctx, pool=self.pool)
             cache[node.name] = result
 
         return {name: cache[name] for name in self.graph.outputs}
 
-    def _resolve_inputs(self, node: GraphNode, cache: MutableMapping[str, Any]) -> Dict[str, Any]:
+    def _resolve_inputs(
+        self, node: GraphNode, cache: MutableMapping[str, Any]
+    ) -> Dict[str, Any]:
         resolved: Dict[str, Any] = {}
         for arg, dep in node.inputs.items():
             if isinstance(dep, GraphInput):
                 resolved[arg] = cache[dep.name]
             else:
                 if dep not in cache:
-                    raise KeyError(f"Graph node {node.name} depends on {dep!r}, which has not been computed.")
+                    raise KeyError(
+                        f"Graph node {node.name} depends on {dep!r}, which has not been computed."
+                    )
                 resolved[arg] = cache[dep]
         return resolved
 
@@ -76,7 +88,12 @@ class NodeScheduler:
 class MessageSource:
     """Represents a graph input that comes from a message."""
 
-    def __init__(self, message_type: str, field: Optional[str] = None, timeout: Optional[float] = None):
+    def __init__(
+        self,
+        message_type: str,
+        field: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ):
         self.message_type = message_type
         self.field = field
         self.timeout = timeout
@@ -187,21 +204,29 @@ class MessageAwareNodeScheduler(NodeScheduler):
         for key, value in inputs.items():
             if isinstance(value, MessageSource):
                 # Wait for message
-                msg = await self.wait_for_message(value.message_type, timeout=value.timeout)
+                msg = await self.wait_for_message(
+                    value.message_type, timeout=value.timeout
+                )
                 if value.field:
                     if isinstance(msg, dict):
                         if value.field not in msg:
-                            raise KeyError(f"Message field '{value.field}' not found in message payload")
+                            raise KeyError(
+                                f"Message field '{value.field}' not found in message payload"
+                            )
                         resolved_inputs[key] = msg[value.field]
                     else:
-                        raise TypeError(f"Cannot extract field '{value.field}' from non-dict message")
+                        raise TypeError(
+                            f"Cannot extract field '{value.field}' from non-dict message"
+                        )
                 else:
                     resolved_inputs[key] = msg
             else:
                 resolved_inputs[key] = value
 
         # Now resolve message sources in graph node inputs
-        missing = [name for name in self.graph.required_inputs if name not in resolved_inputs]
+        missing = [
+            name for name in self.graph.required_inputs if name not in resolved_inputs
+        ]
         if missing:
             raise ValueError(f"Missing graph inputs: {missing}")
 
@@ -212,7 +237,9 @@ class MessageAwareNodeScheduler(NodeScheduler):
             metadata = dict(self.metadata)
             if self.pool is not None:
                 metadata.setdefault("pool_size", self.pool.size)
-                metadata.setdefault("worker_affinities", tuple(self.pool.worker_affinities()))
+                metadata.setdefault(
+                    "worker_affinities", tuple(self.pool.worker_affinities())
+                )
             # Add scheduler to metadata for MessageTriggerOp
             metadata["scheduler"] = self
             ctx = OpContext(node_name=node.name, metadata=metadata)
@@ -221,7 +248,9 @@ class MessageAwareNodeScheduler(NodeScheduler):
 
         return {name: cache[name] for name in self.graph.outputs}
 
-    async def _resolve_inputs(self, node: GraphNode, cache: MutableMapping[str, Any]) -> Dict[str, Any]:
+    async def _resolve_inputs(
+        self, node: GraphNode, cache: MutableMapping[str, Any]
+    ) -> Dict[str, Any]:
         """Override to handle MessageSource in node inputs."""
         resolved: Dict[str, Any] = {}
         for arg, dep in node.inputs.items():
@@ -231,17 +260,23 @@ class MessageAwareNodeScheduler(NodeScheduler):
                 if dep.field:
                     if isinstance(msg, dict):
                         if dep.field not in msg:
-                            raise KeyError(f"Message field '{dep.field}' not found in message payload")
+                            raise KeyError(
+                                f"Message field '{dep.field}' not found in message payload"
+                            )
                         resolved[arg] = msg[dep.field]
                     else:
-                        raise TypeError(f"Cannot extract field '{dep.field}' from non-dict message")
+                        raise TypeError(
+                            f"Cannot extract field '{dep.field}' from non-dict message"
+                        )
                 else:
                     resolved[arg] = msg
             elif isinstance(dep, GraphInput):
                 resolved[arg] = cache[dep.name]
             else:
                 if dep not in cache:
-                    raise KeyError(f"Graph node {node.name} depends on {dep!r}, which has not been computed.")
+                    raise KeyError(
+                        f"Graph node {node.name} depends on {dep!r}, which has not been computed."
+                    )
                 resolved[arg] = cache[dep]
         return resolved
 

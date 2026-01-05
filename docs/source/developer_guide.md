@@ -12,6 +12,23 @@ source .venv/bin/activate
 pip install -e python[dev]
 pip install -e python[gpu]            # optional CUDA extras
 pip install -r docs/requirements.txt  # to build docs
+pip install pre-commit                 # for code formatting hooks
+pre-commit install                     # install git hooks
+```
+
+### Pre-commit Hooks
+
+We use [pre-commit](https://pre-commit.com/) to automatically format and lint code before commits. The hooks ensure code consistency by:
+
+- **Formatting code** with [Black](https://github.com/psf/black) (100 character line length)
+- **Sorting imports** with [isort](https://pycqa.github.io/isort/) (Black-compatible profile)
+- **Linting code** with [flake8](https://flake8.pycqa.org/)
+- **Checking files** for trailing whitespace, merge conflicts, large files, and other common issues
+
+The hooks run automatically on `git commit`. To manually run them on all files:
+
+```bash
+pre-commit run --all-files
 ```
 
 ## Linting & Tests

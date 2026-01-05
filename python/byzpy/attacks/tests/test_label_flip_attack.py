@@ -1,7 +1,6 @@
+import pytest
 import torch
 import torch.nn as nn
-import pytest
-
 from byzpy.attacks.label_flip import LabelFlipAttack
 
 

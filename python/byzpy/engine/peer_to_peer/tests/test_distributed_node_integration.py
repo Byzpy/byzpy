@@ -1,20 +1,23 @@
 """
 Categories 3-4: DistributedP2PHonestNode and DistributedP2PByzNode Integration Tests
 """
+
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 import torch
-
-from byzpy.engine.node.decentralized import DecentralizedNode
-from byzpy.engine.node.distributed import DistributedHonestNode, DistributedByzantineNode
-from byzpy.engine.node.context import InProcessContext
-from byzpy.engine.peer_to_peer.topology import Topology
-from byzpy.engine.graph.pool import ActorPoolConfig
 from byzpy.aggregators.coordinate_wise import CoordinateWiseMedian
 from byzpy.attacks import EmpireAttack
-
+from byzpy.engine.graph.pool import ActorPoolConfig
+from byzpy.engine.node.context import InProcessContext
+from byzpy.engine.node.decentralized import DecentralizedNode
+from byzpy.engine.node.distributed import (
+    DistributedByzantineNode,
+    DistributedHonestNode,
+)
+from byzpy.engine.peer_to_peer.topology import Topology
 
 
 @pytest.mark.asyncio
@@ -82,8 +85,7 @@ async def test_distributedp2phonestnode_half_step_execution():
     x = torch.tensor([1.0, 2.0])
     y = torch.tensor([0.5, 1.0])
     result = await node.execute_pipeline(
-        HonestNodeApplication.GRADIENT_PIPELINE,
-        {"x": x, "y": y}
+        HonestNodeApplication.GRADIENT_PIPELINE, {"x": x, "y": y}
     )
 
     assert "honest_gradient" in result
@@ -115,6 +117,7 @@ async def test_distributedp2phonestnode_aggregation_from_messages():
     )
 
     from byzpy.engine.node.cluster import DecentralizedCluster
+
     cluster = DecentralizedCluster()
 
     node = await cluster.add_node(
@@ -147,7 +150,6 @@ async def test_distributedp2phonestnode_aggregation_from_messages():
     await cluster.shutdown_all()
 
 
-
 @pytest.mark.asyncio
 async def test_distributedp2pbyznode_works_with_decentralizednode():
     """Verify DistributedP2PByzNode can be used with DecentralizedNode."""
@@ -174,6 +176,7 @@ async def test_distributedp2pbyznode_works_with_decentralizednode():
     await node.start()
 
     from byzpy.engine.node.application import ByzantineNodeApplication
+
     assert node.application.has_pipeline(ByzantineNodeApplication.ATTACK_PIPELINE)
 
     await node.shutdown()
@@ -200,6 +203,7 @@ async def test_distributedp2pbyznode_broadcast_attack():
     )
 
     from byzpy.engine.node.cluster import DecentralizedCluster
+
     cluster = DecentralizedCluster()
 
     node = await cluster.add_node(
@@ -210,6 +214,7 @@ async def test_distributedp2pbyznode_broadcast_attack():
     )
 
     from byzpy.engine.node.application import HonestNodeApplication
+
     honest_app = HonestNodeApplication(
         name="honest",
         actor_pool=[ActorPoolConfig(backend="thread", count=1)],
@@ -244,4 +249,3 @@ async def test_distributedp2pbyznode_broadcast_attack():
     assert len(received_vectors) >= 1
 
     await cluster.shutdown_all()
-

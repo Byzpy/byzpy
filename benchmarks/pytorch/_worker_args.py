@@ -10,7 +10,9 @@ def parse_worker_counts(raw: str) -> list[int]:
     """Parse a comma/space separated worker list from the CLI."""
     tokens = [part.strip() for part in raw.replace(",", " ").split() if part.strip()]
     if not tokens:
-        raise argparse.ArgumentTypeError("Expected at least one worker count (example: 2,4,6).")
+        raise argparse.ArgumentTypeError(
+            "Expected at least one worker count (example: 2,4,6)."
+        )
     try:
         return [int(part) for part in tokens]
     except ValueError as exc:

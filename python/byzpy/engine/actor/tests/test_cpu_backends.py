@@ -3,18 +3,15 @@ import contextlib
 import math
 import socket
 import threading
+
 import pytest
 import pytest_asyncio
 import torch
-
+from byzpy.engine.actor.backends.process import ProcessActorBackend
+from byzpy.engine.actor.backends.remote import RemoteActorBackend, start_actor_server
+from byzpy.engine.actor.backends.thread import ThreadActorBackend
 from byzpy.engine.actor.base import ActorRef
 from byzpy.engine.actor.channels import open_channel
-from byzpy.engine.actor.backends.thread import ThreadActorBackend
-from byzpy.engine.actor.backends.process import ProcessActorBackend
-from byzpy.engine.actor.backends.remote import (
-    RemoteActorBackend,
-    start_actor_server,
-)
 
 
 class Worker:
@@ -176,7 +173,8 @@ async def test_channel_timeout_returns_none(backend_pair):
 async def test_cross_backend_thread_to_process():
     A = ThreadActorBackend()
     B = ProcessActorBackend()
-    await A.start(); await B.start()
+    await A.start()
+    await B.start()
     await A.construct(Worker, args=(), kwargs={})
     await B.construct(Worker, args=(), kwargs={})
     try:
@@ -188,14 +186,16 @@ async def test_cross_backend_thread_to_process():
         got = await chB.recv(timeout=1.0)
         assert torch.equal(got, torch.arange(5, dtype=torch.float32))
     finally:
-        await A.close(); await B.close()
+        await A.close()
+        await B.close()
 
 
 @pytest.mark.asyncio
 async def test_cross_backend_process_to_thread():
     A = ProcessActorBackend()
     B = ThreadActorBackend()
-    await A.start(); await B.start()
+    await A.start()
+    await B.start()
     await A.construct(Worker, args=(), kwargs={})
     await B.construct(Worker, args=(), kwargs={})
     try:
@@ -207,7 +207,8 @@ async def test_cross_backend_process_to_thread():
         got = await chB.recv(timeout=1.0)
         assert torch.equal(got, torch.arange(6, dtype=torch.float32))
     finally:
-        await A.close(); await B.close()
+        await A.close()
+        await B.close()
 
 
 @pytest.mark.asyncio
@@ -234,7 +235,8 @@ async def test_remote_backend_via_tcp_server(tcp_server_addr):
         got = await chB.recv(timeout=1.0)
         assert torch.equal(got, torch.tensor([10.0, 20.0]))
     finally:
-        await A.close(); await B.close()
+        await A.close()
+        await B.close()
 
 
 @pytest.mark.asyncio
@@ -274,16 +276,20 @@ async def _make_backend(kind: str, tcp_server_addr):
         ("thread", "thread"),
         ("process", "process"),
         ("remote", "remote"),
-        ("thread", "process"), ("process", "thread"),
-        ("thread", "remote"),  ("remote", "thread"),
-        ("process", "remote"), ("remote", "process"),
+        ("thread", "process"),
+        ("process", "thread"),
+        ("thread", "remote"),
+        ("remote", "thread"),
+        ("process", "remote"),
+        ("remote", "process"),
     ],
 )
 async def test_cross_backend_matrix(kindA, kindB, tcp_server_addr):
     A = await _make_backend(kindA, tcp_server_addr)
     B = await _make_backend(kindB, tcp_server_addr)
 
-    await A.start(); await B.start()
+    await A.start()
+    await B.start()
 
     await A.construct(Worker, args=(), kwargs={})
     await B.construct(Worker, args=(), kwargs={})
@@ -302,7 +308,8 @@ async def test_cross_backend_matrix(kindA, kindB, tcp_server_addr):
         assert isinstance(got, torch.Tensor)
         assert torch.equal(got, torch.arange(7, dtype=torch.float32))
     finally:
-        await A.close(); await B.close()
+        await A.close()
+        await B.close()
 
 
 @pytest.mark.asyncio
@@ -312,9 +319,12 @@ async def test_cross_backend_matrix(kindA, kindB, tcp_server_addr):
         ("thread", "thread"),
         ("process", "process"),
         ("remote", "remote"),
-        ("thread", "process"), ("process", "thread"),
-        ("thread", "remote"),  ("remote", "thread"),
-        ("process", "remote"), ("remote", "process"),
+        ("thread", "process"),
+        ("process", "thread"),
+        ("thread", "remote"),
+        ("remote", "thread"),
+        ("process", "remote"),
+        ("remote", "process"),
     ],
 )
 async def test_cross_backend_matrix_actorref(kindA, kindB, tcp_server_addr):

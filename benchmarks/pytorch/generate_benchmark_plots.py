@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from pathlib import Path
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Sequence
 
@@ -21,14 +21,21 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.pytorch.actor_pool_python import BenchmarkRun as ActorRun, _benchmark as actor_benchmark
-from benchmarks.pytorch.mda_actor_pool import BenchmarkRun as MDARun, _benchmark as mda_benchmark
-from benchmarks.pytorch.mnist_training_actor_pool import BenchmarkRun as TrainRun, _benchmark as train_benchmark
-from benchmarks.pytorch.cwtm_actor_pool import BenchmarkRun as CwRun, _benchmark as cwtm_benchmark
-from benchmarks.pytorch.meamed_actor_pool import BenchmarkRun as MeamedRun, _benchmark as meamed_benchmark
+from benchmarks.pytorch.actor_pool_python import BenchmarkRun as ActorRun
+from benchmarks.pytorch.actor_pool_python import _benchmark as actor_benchmark
+from benchmarks.pytorch.cwtm_actor_pool import BenchmarkRun as CwRun
+from benchmarks.pytorch.cwtm_actor_pool import _benchmark as cwtm_benchmark
+from benchmarks.pytorch.mda_actor_pool import BenchmarkRun as MDARun
+from benchmarks.pytorch.mda_actor_pool import _benchmark as mda_benchmark
+from benchmarks.pytorch.meamed_actor_pool import BenchmarkRun as MeamedRun
+from benchmarks.pytorch.meamed_actor_pool import _benchmark as meamed_benchmark
+from benchmarks.pytorch.mnist_training_actor_pool import BenchmarkRun as TrainRun
+from benchmarks.pytorch.mnist_training_actor_pool import _benchmark as train_benchmark
 
 
-async def _run_actor_pool_cases(workers: Sequence[int]) -> list[tuple[int, float, float]]:
+async def _run_actor_pool_cases(
+    workers: Sequence[int],
+) -> list[tuple[int, float, float]]:
     results: list[tuple[int, float, float]] = []
     for count in workers:
         args = SimpleNamespace(
@@ -48,7 +55,9 @@ async def _run_actor_pool_cases(workers: Sequence[int]) -> list[tuple[int, float
     return results
 
 
-async def _run_mda_case(worker_count: int, *, chunk_size: int) -> tuple[float, float, float, float]:
+async def _run_mda_case(
+    worker_count: int, *, chunk_size: int
+) -> tuple[float, float, float, float]:
     args = SimpleNamespace(
         num_grads=18,
         grad_dim=2048,
@@ -67,7 +76,9 @@ async def _run_mda_case(worker_count: int, *, chunk_size: int) -> tuple[float, f
     return worker_count, direct.avg_seconds, single.avg_seconds, pool.avg_seconds
 
 
-async def _run_cwtm_case(worker_count: int, *, chunk_size: int) -> tuple[float, float, float, float]:
+async def _run_cwtm_case(
+    worker_count: int, *, chunk_size: int
+) -> tuple[float, float, float, float]:
     args = SimpleNamespace(
         num_grads=64,
         grad_dim=65536,
@@ -86,7 +97,9 @@ async def _run_cwtm_case(worker_count: int, *, chunk_size: int) -> tuple[float, 
     return worker_count, direct.avg_seconds, single.avg_seconds, pool.avg_seconds
 
 
-async def _run_meamed_case(worker_count: int, *, chunk_size: int, f: int) -> tuple[float, float, float, float]:
+async def _run_meamed_case(
+    worker_count: int, *, chunk_size: int, f: int
+) -> tuple[float, float, float, float]:
     args = SimpleNamespace(
         num_grads=64,
         grad_dim=65536,
@@ -144,7 +157,9 @@ def _plot_bars(
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Generate benchmark plots.")
-    parser.add_argument("--output-dir", type=Path, default=REPO_ROOT / "benchmarks" / "plots")
+    parser.add_argument(
+        "--output-dir", type=Path, default=REPO_ROOT / "benchmarks" / "plots"
+    )
     args = parser.parse_args()
 
     actor_workers = [8]
@@ -152,9 +167,13 @@ async def main() -> None:
     mda_workers = [4]
     mda_results = [await _run_mda_case(count, chunk_size=512) for count in mda_workers]
     cwtm_workers = [4]
-    cwtm_results = [await _run_cwtm_case(count, chunk_size=8192) for count in cwtm_workers]
+    cwtm_results = [
+        await _run_cwtm_case(count, chunk_size=8192) for count in cwtm_workers
+    ]
     meamed_workers = [4]
-    meamed_results = [await _run_meamed_case(count, chunk_size=8192, f=8) for count in meamed_workers]
+    meamed_results = [
+        await _run_meamed_case(count, chunk_size=8192, f=8) for count in meamed_workers
+    ]
     mnist_args = SimpleNamespace(
         num_workers=14,
         byz_workers=4,

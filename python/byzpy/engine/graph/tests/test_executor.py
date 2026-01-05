@@ -1,21 +1,22 @@
 """
 Tests for OperatorExecutor - simplified operator execution API.
 """
+
 from __future__ import annotations
 
 import time
-import torch
-import pytest
 from typing import Any, Mapping, Sequence
 
-from byzpy.engine.graph.executor import OperatorExecutor, run_operator, _detect_input_keys
-from byzpy.engine.graph.operator import Operator, OpContext
-from byzpy.engine.graph.pool import ActorPoolConfig
+import pytest
+import torch
 from byzpy.aggregators.coordinate_wise.median import CoordinateWiseMedian
 from byzpy.aggregators.geometric_wise.krum import MultiKrum
-from byzpy.pre_aggregators.clipping import Clipping
-from byzpy.pre_aggregators.bucketing import Bucketing
 from byzpy.attacks.empire import EmpireAttack
+from byzpy.engine.graph.executor import OperatorExecutor, run_operator
+from byzpy.engine.graph.operator import OpContext, Operator
+from byzpy.engine.graph.pool import ActorPoolConfig
+from byzpy.pre_aggregators.bucketing import Bucketing
+from byzpy.pre_aggregators.clipping import Clipping
 
 
 def _make_gradients(n: int, dim: int, seed: int = 0) -> list[torch.Tensor]:
@@ -46,16 +47,16 @@ async def _manual_run(
     input_keys: Sequence[str] | None = None,
 ) -> Any:
     """Run operator using manual boilerplate (for comparison)."""
-    from byzpy.engine.graph.ops import make_single_operator_graph
-    from byzpy.engine.graph.scheduler import NodeScheduler
-    from byzpy.engine.graph.pool import ActorPool
     from byzpy.engine.graph.executor import _detect_input_keys
+    from byzpy.engine.graph.ops import make_single_operator_graph
+    from byzpy.engine.graph.pool import ActorPool
+    from byzpy.engine.graph.scheduler import NodeScheduler
 
     if input_keys is None:
         try:
             input_keys = _detect_input_keys(operator)
         except ValueError:
-            if hasattr(operator, 'input_key'):
+            if hasattr(operator, "input_key"):
                 input_keys = (operator.input_key,)
             else:
                 raise
@@ -118,8 +119,7 @@ class TestOperatorExecutorBasic:
         """Test 1.3: Run Operator With Pool"""
         operator = MultiKrum(f=10, q=5, chunk_size=10)
         executor = OperatorExecutor(
-            operator,
-            pool_config=ActorPoolConfig(backend="process", count=2)
+            operator, pool_config=ActorPoolConfig(backend="process", count=2)
         )
 
         gradients = _make_gradients(30, 1000)
@@ -133,7 +133,7 @@ class TestOperatorExecutorBasic:
         manual_result = await _manual_run(
             operator,
             {"gradients": gradients},
-            pool_config=ActorPoolConfig(backend="process", count=2)
+            pool_config=ActorPoolConfig(backend="process", count=2),
         )
         assert torch.allclose(result, manual_result, atol=1e-6)
 
@@ -142,8 +142,7 @@ class TestOperatorExecutorBasic:
         """Test 1.4: Run Operator Multiple Times (Pool Reuse)"""
         operator = CoordinateWiseMedian()
         executor = OperatorExecutor(
-            operator,
-            pool_config=ActorPoolConfig(backend="process", count=2)
+            operator, pool_config=ActorPoolConfig(backend="process", count=2)
         )
 
         gradients1 = _make_gradients(64, 1000, seed=0)
@@ -216,6 +215,7 @@ class TestAutoDetection:
     @pytest.mark.asyncio
     async def test_auto_detection_failure_requires_explicit(self):
         """Test 2.5: Auto-Detection Failure Requires Explicit Keys"""
+
         class CustomOperator(Operator):
             name = "custom"
 
@@ -240,8 +240,7 @@ class TestContextManager:
         """Test 3.1: Context Manager Entry Starts Pool"""
         operator = CoordinateWiseMedian()
         executor = OperatorExecutor(
-            operator,
-            pool_config=ActorPoolConfig(backend="process", count=2)
+            operator, pool_config=ActorPoolConfig(backend="process", count=2)
         )
 
         assert executor._pool is None
@@ -258,8 +257,7 @@ class TestContextManager:
         """Test 3.2: Context Manager Exit Shuts Down Pool"""
         operator = CoordinateWiseMedian()
         executor = OperatorExecutor(
-            operator,
-            pool_config=ActorPoolConfig(backend="process", count=2)
+            operator, pool_config=ActorPoolConfig(backend="process", count=2)
         )
 
         gradients = _make_gradients(64, 1000)
@@ -275,8 +273,7 @@ class TestContextManager:
         """Test 3.3: Context Manager Handles Exceptions"""
         operator = CoordinateWiseMedian()
         executor = OperatorExecutor(
-            operator,
-            pool_config=ActorPoolConfig(backend="process", count=2)
+            operator, pool_config=ActorPoolConfig(backend="process", count=2)
         )
 
         try:
@@ -377,8 +374,7 @@ class TestPoolConfiguration:
         """Test 5.1: Single Pool Config"""
         operator = CoordinateWiseMedian()
         executor = OperatorExecutor(
-            operator,
-            pool_config=ActorPoolConfig(backend="process", count=2)
+            operator, pool_config=ActorPoolConfig(backend="process", count=2)
         )
 
         gradients = _make_gradients(64, 1000)
@@ -398,7 +394,7 @@ class TestPoolConfiguration:
             pool_config=[
                 ActorPoolConfig(backend="process", count=2),
                 ActorPoolConfig(backend="thread", count=2),
-            ]
+            ],
         )
 
         gradients = _make_gradients(64, 1000)
@@ -416,16 +412,14 @@ class TestPoolConfiguration:
         gradients = _make_gradients(64, 1000)
 
         executor_process = OperatorExecutor(
-            operator,
-            pool_config=ActorPoolConfig(backend="process", count=2)
+            operator, pool_config=ActorPoolConfig(backend="process", count=2)
         )
         async with executor_process:
             result_process = await executor_process.run({"gradients": gradients})
             assert isinstance(result_process, torch.Tensor)
 
         executor_thread = OperatorExecutor(
-            operator,
-            pool_config=ActorPoolConfig(backend="thread", count=2)
+            operator, pool_config=ActorPoolConfig(backend="thread", count=2)
         )
         async with executor_thread:
             result_thread = await executor_thread.run({"gradients": gradients})
@@ -472,8 +466,7 @@ class TestErrorHandling:
         operator = CoordinateWiseMedian()
 
         executor = OperatorExecutor(
-            operator,
-            pool_config=ActorPoolConfig(backend="invalid_backend", count=2)
+            operator, pool_config=ActorPoolConfig(backend="invalid_backend", count=2)
         )
 
         gradients = _make_gradients(64, 1000)
@@ -520,10 +513,10 @@ class TestPerformance:
         gradients = _make_gradients(30, 1000)
         pool_config = ActorPoolConfig(backend="process", count=2)
 
-        from byzpy.engine.graph.ops import make_single_operator_graph
-        from byzpy.engine.graph.scheduler import NodeScheduler
-        from byzpy.engine.graph.pool import ActorPool
         from byzpy.engine.graph.executor import _detect_input_keys
+        from byzpy.engine.graph.ops import make_single_operator_graph
+        from byzpy.engine.graph.pool import ActorPool
+        from byzpy.engine.graph.scheduler import NodeScheduler
 
         input_keys = _detect_input_keys(operator)
         graph = make_single_operator_graph(
@@ -629,9 +622,7 @@ class TestResultCorrectness:
         honest_grads = _make_gradients(10, 1000)
 
         manual_result = await _manual_run(
-            operator,
-            {"honest_grads": honest_grads},
-            input_keys=("honest_grads",)
+            operator, {"honest_grads": honest_grads}, input_keys=("honest_grads",)
         )
 
         executor = OperatorExecutor(operator, input_keys=("honest_grads",))
@@ -687,4 +678,3 @@ class TestEdgeCases:
         result = await executor.run({"gradients": gradients})
 
         assert isinstance(result, torch.Tensor)
-

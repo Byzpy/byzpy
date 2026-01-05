@@ -1,11 +1,12 @@
 """Cluster management for decentralized nodes."""
+
 from __future__ import annotations
 
 from typing import Any, Dict, Optional, Union
 
-from .context import ProcessContext, NodeContext
-from .decentralized import DecentralizedNode
 from .application import NodeApplication
+from .context import NodeContext, ProcessContext
+from .decentralized import DecentralizedNode
 
 
 class DecentralizedCluster:
@@ -74,7 +75,9 @@ class DecentralizedCluster:
             node._node_id_map = self._node_id_map.copy()
             node.message_router._node_id_map = self._node_id_map.copy()
             # Build reverse map
-            node.message_router._reverse_id_map = {v: k for k, v in self._node_id_map.items()}
+            node.message_router._reverse_id_map = {
+                v: k for k, v in self._node_id_map.items()
+            }
 
     async def start_all(self) -> None:
         """Start all nodes in the cluster."""
@@ -108,4 +111,3 @@ class DecentralizedCluster:
 
 
 __all__ = ["DecentralizedCluster"]
-

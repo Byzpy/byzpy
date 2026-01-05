@@ -1,24 +1,27 @@
 from __future__ import annotations
-from typing import Any, Iterable, Sequence
+
 import heapq
 import math
 import os
+from typing import Any, Iterable, Sequence
+
 import numpy as np
 
-from ..base import Aggregator
-from .._chunking import select_adaptive_chunk_size
 from ...configs.backend import get_backend
 from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
+from .._chunking import select_adaptive_chunk_size
+from ..base import Aggregator
 from ..coordinate_wise._tiling import flatten_gradients
 
 try:  # optional torch for _to_like conversion
     import torch
+
     _HAS_TORCH = True
 except Exception:  # pragma: no cover
     torch = None  # type: ignore
@@ -52,7 +55,7 @@ def _pairwise_sq_dists(stacked: Any) -> Any:
     diff = stacked[:, None, ...] - stacked[None, :, ...]  # (n, n, ...)
     sq = diff * diff
     axes = tuple(range(2, sq.ndim))  # sum over feature dims
-    return be.sum(sq, axis=axes)     # (n, n)
+    return be.sum(sq, axis=axes)  # (n, n)
 
 
 def _materialize_gradients(gradients: Sequence[Any]) -> tuple[Any, Sequence[Any]]:
@@ -121,6 +124,7 @@ class MultiKrum(Aggregator):
        (2017). Machine learning with adversaries: Byzantine tolerant gradient
        descent. NeurIPS.
     """
+
     name = "multi-krum"
     supports_subtasks = True
     max_subtasks_inflight = 0
@@ -168,23 +172,27 @@ class MultiKrum(Aggregator):
         if f >= n - 1:
             raise ValueError(f"f must satisfy 0 <= f < n-1 (got n={n}, f={f})")
         if q > n - f:
-            raise ValueError(f"q must satisfy 1 <= q <= n - f (got n={n}, f={f}, q={q})")
+            raise ValueError(
+                f"q must satisfy 1 <= q <= n - f (got n={n}, f={f}, q={q})"
+            )
 
         be = get_backend()
         like, mats = _materialize_gradients(gradients)
         use_like = _HAS_TORCH and isinstance(like, torch.Tensor)
-        to_stack = [be.asarray(g, like=like) if use_like else be.asarray(g) for g in mats]
+        to_stack = [
+            be.asarray(g, like=like) if use_like else be.asarray(g) for g in mats
+        ]
         X = be.stack(to_stack, axis=0)  # (n, ...)
 
         D = _pairwise_sq_dists(X)  # (n, n)
 
-        order = be.argsort(D, axis=1)                    # (n, n)
-        neigh_idx = order[:, 1 : (n - f)]                # (n, n-f-1)
+        order = be.argsort(D, axis=1)  # (n, n)
+        neigh_idx = order[:, 1 : (n - f)]  # (n, n-f-1)
         neigh_d = be.take_along_axis(D, neigh_idx, axis=1)  # (n, n-f-1)
 
-        scores = be.sum(neigh_d, axis=1)                 # (n,)
+        scores = be.sum(neigh_d, axis=1)  # (n,)
 
-        winner_order = be.argsort(scores, axis=0)[:q]    # (q,)
+        winner_order = be.argsort(scores, axis=0)[:q]  # (q,)
         chosen = be.index_select(X, axis=0, indices=winner_order)  # (q, ...)
 
         return be.mean(chosen, axis=0)
@@ -199,7 +207,9 @@ class MultiKrum(Aggregator):
         if f >= n - 1:
             raise ValueError(f"f must satisfy 0 <= f < n-1 (got n={n}, f={f})")
         if q > n - f:
-            raise ValueError(f"q must satisfy 1 <= q <= n - f (got n={n}, f={f}, q={q})")
+            raise ValueError(
+                f"q must satisfy 1 <= q <= n - f (got n={n}, f={f}, q={q})"
+            )
 
         flat_shape, flat = flatten_gradients(gradients)
         flat = np.ascontiguousarray(flat, dtype=np.float32)
@@ -221,7 +231,15 @@ class MultiKrum(Aggregator):
                 end = min(n, start + chunk)
                 yield SubTask(
                     fn=_multikrum_chunk,
-                    args=(handle, norms_handle, n, self.f, start, end, self._active_workers),
+                    args=(
+                        handle,
+                        norms_handle,
+                        n,
+                        self.f,
+                        start,
+                        end,
+                        self._active_workers,
+                    ),
                     kwargs={},
                     name=f"multikrum_chunk_{chunk_id}",
                 )
@@ -247,12 +265,16 @@ class MultiKrum(Aggregator):
             try:
                 start, scores = part
             except Exception as exc:  # pragma: no cover
-                raise ValueError(f"MultiKrum received malformed partial at index {idx}: {part!r}") from exc
+                raise ValueError(
+                    f"MultiKrum received malformed partial at index {idx}: {part!r}"
+                ) from exc
             for offset, score in enumerate(scores):
                 candidates.append((float(score), start + offset))
 
         if len(candidates) < q:
-            raise RuntimeError(f"MultiKrum expected >= {q} candidates but received {len(candidates)}.")
+            raise RuntimeError(
+                f"MultiKrum expected >= {q} candidates but received {len(candidates)}."
+            )
 
         best = heapq.nsmallest(q, candidates, key=lambda x: x[0])
         best_indices = [idx for _, idx in best]
@@ -316,6 +338,7 @@ class Krum(Aggregator):
     --------
     MultiKrum : The general version that selects q gradients.
     """
+
     name = "krum"
     supports_subtasks = True
     max_subtasks_inflight = 0

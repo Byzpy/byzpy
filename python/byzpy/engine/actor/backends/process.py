@@ -1,23 +1,25 @@
 from __future__ import annotations
+
 import asyncio
-import uuid
-import traceback
-from typing import Any, Dict, Optional, Tuple, List
-from multiprocessing import get_context
 import threading
+import traceback
+import uuid
+from multiprocessing import get_context
+from typing import Any, Dict, List, Optional, Tuple
 
 import cloudpickle
 
 from ..base import ActorBackend
 from ..channels import Endpoint
+from ..ipc import unwrap_payload, wrap_payload
 from ..router import channel_router
-from ..transports import ucx, tcp
-from ..ipc import wrap_payload, unwrap_payload
+from ..transports import tcp, ucx
 
 
 def _worker(conn):
     obj = None
     import queue as qmod
+
     mailboxes: Dict[str, qmod.Queue] = {}
 
     def _ensure_q(name: str) -> qmod.Queue:
@@ -37,19 +39,34 @@ def _worker(conn):
 
                 if op == "construct":
                     target = cloudpickle.loads(msg["blob"])
-                    args  = unwrap_payload(msg["args"])
+                    args = unwrap_payload(msg["args"])
                     kwargs = unwrap_payload(msg["kwargs"])
-                    obj = target(*args, **kwargs) if not isinstance(target, type) else target(*args, **kwargs)
-                    conn.send({"ok": True, "id": msg["id"], "payload": None, "actor_id": msg["actor_id"]})
+                    obj = (
+                        target(*args, **kwargs)
+                        if not isinstance(target, type)
+                        else target(*args, **kwargs)
+                    )
+                    conn.send(
+                        {
+                            "ok": True,
+                            "id": msg["id"],
+                            "payload": None,
+                            "actor_id": msg["actor_id"],
+                        }
+                    )
 
                 elif op == "call":
                     if obj is None:
-                        raise RuntimeError("ProcessActor not initialized; call construct() first.")
+                        raise RuntimeError(
+                            "ProcessActor not initialized; call construct() first."
+                        )
                     fn = getattr(obj, msg["method"])
-                    args  = unwrap_payload(msg["args"])
+                    args = unwrap_payload(msg["args"])
                     kwargs = unwrap_payload(msg["kwargs"])
                     res = fn(*args, **kwargs)
-                    conn.send({"ok": True, "id": msg["id"], "payload": wrap_payload(res)})
+                    conn.send(
+                        {"ok": True, "id": msg["id"], "payload": wrap_payload(res)}
+                    )
 
                 elif op == "chan_open":
                     _ensure_q(msg["name"])
@@ -66,7 +83,9 @@ def _worker(conn):
                     timeout = msg.get("timeout", None)
                     q = _ensure_q(name)
                     try:
-                        item = q.get(timeout=timeout) if timeout is not None else q.get()
+                        item = (
+                            q.get(timeout=timeout) if timeout is not None else q.get()
+                        )
                     except qmod.Empty:
                         payload = None
                     else:
@@ -81,14 +100,18 @@ def _worker(conn):
                     raise RuntimeError(f"unknown op {op!r}")
 
             except Exception as e:
-                conn.send({
-                    "ok": False,
-                    "id": msg.get("id"),
-                    "payload": (type(e).__name__, str(e), traceback.format_exc()),
-                })
+                conn.send(
+                    {
+                        "ok": False,
+                        "id": msg.get("id"),
+                        "payload": (type(e).__name__, str(e), traceback.format_exc()),
+                    }
+                )
     finally:
-        try: conn.close()
-        except Exception: pass
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 class ProcessActorBackend(ActorBackend):
@@ -109,7 +132,9 @@ class ProcessActorBackend(ActorBackend):
         if self._loop is None:
             self._loop = asyncio.get_running_loop()
 
-    async def construct(self, cls_or_factory: Any, *, args: tuple, kwargs: dict) -> None:
+    async def construct(
+        self, cls_or_factory: Any, *, args: tuple, kwargs: dict
+    ) -> None:
         blob = cloudpickle.dumps(cls_or_factory)
         req = {
             "op": "construct",
@@ -117,7 +142,7 @@ class ProcessActorBackend(ActorBackend):
             "blob": blob,
             "args": wrap_payload(args),
             "kwargs": wrap_payload(kwargs),
-            "actor_id": self._actor_id
+            "actor_id": self._actor_id,
         }
         await self._send(req)
 
@@ -133,12 +158,18 @@ class ProcessActorBackend(ActorBackend):
 
     async def close(self):
         try:
+
             def _rt_close():
                 with self._io_lock:
-                    try: self._parent.send(None)
-                    except Exception: pass
-                    try: self._parent.close()
-                    except Exception: pass
+                    try:
+                        self._parent.send(None)
+                    except Exception:
+                        pass
+                    try:
+                        self._parent.close()
+                    except Exception:
+                        pass
+
             loop = self._loop or asyncio.get_running_loop()
             await loop.run_in_executor(None, _rt_close)
         except Exception:
@@ -153,39 +184,60 @@ class ProcessActorBackend(ActorBackend):
         await self._send({"op": "chan_open", "id": str(uuid.uuid4()), "name": name})
         return await self.get_endpoint()
 
-    async def chan_put(self, *, from_ep: Endpoint, to_ep: Endpoint, name: str, payload: Any) -> None:
+    async def chan_put(
+        self, *, from_ep: Endpoint, to_ep: Endpoint, name: str, payload: Any
+    ) -> None:
         if to_ep.scheme == "process":
             safe_payload = wrap_payload(payload)
             if to_ep.actor_id == self._actor_id:
-                await self._send({"op": "chan_deliver", "id": str(uuid.uuid4()), "name": name,
-                                  "payload": (from_ep, safe_payload)})
+                await self._send(
+                    {
+                        "op": "chan_deliver",
+                        "id": str(uuid.uuid4()),
+                        "name": name,
+                        "payload": (from_ep, safe_payload),
+                    }
+                )
                 return
             peer = channel_router.resolve("process", to_ep.actor_id)
             if peer is None:
                 raise RuntimeError(f"no local process actor {to_ep.actor_id}")
-            await peer._send({"op": "chan_deliver", "id": str(uuid.uuid4()), "name": name,
-                              "payload": (from_ep, safe_payload)})
+            await peer._send(
+                {
+                    "op": "chan_deliver",
+                    "id": str(uuid.uuid4()),
+                    "name": name,
+                    "payload": (from_ep, safe_payload),
+                }
+            )
             return
 
         if to_ep.scheme == "thread":
             peer = channel_router.resolve("thread", to_ep.actor_id)
             if peer is None:
                 raise RuntimeError(f"no local thread actor {to_ep.actor_id}")
-            await peer.chan_put(from_ep=from_ep, to_ep=to_ep, name=name, payload=payload)
+            await peer.chan_put(
+                from_ep=from_ep, to_ep=to_ep, name=name, payload=payload
+            )
             return
 
         if to_ep.scheme == "ucx":
             if not ucx.have_ucx():
-                raise RuntimeError("UCX requested but UCX is not available (need ucxx or ucp)")
+                raise RuntimeError(
+                    "UCX requested but UCX is not available (need ucxx or ucp)"
+                )
             host, port_str = to_ep.address.rsplit(":", 1)
 
             async def _op(e):
-                await ucx.send_control(e, {
-                    "op": "chan_put",
-                    "from": from_ep.__dict__,
-                    "to": to_ep.__dict__,
-                    "name": name,
-                })
+                await ucx.send_control(
+                    e,
+                    {
+                        "op": "chan_put",
+                        "from": from_ep.__dict__,
+                        "to": to_ep.__dict__,
+                        "name": name,
+                    },
+                )
                 tag, desc = ucx.pack_payload(payload)
                 await ucx.send_payload(e, tag, desc, payload)
                 rep = await ucx.recv_control(e)
@@ -209,23 +261,42 @@ class ProcessActorBackend(ActorBackend):
             peer = channel_router.resolve("gpu", to_ep.actor_id)
             if peer is None:
                 raise RuntimeError(f"no local gpu actor {to_ep.actor_id}")
-            await peer.chan_put(from_ep=from_ep, to_ep=to_ep, name=name, payload=payload)
+            await peer.chan_put(
+                from_ep=from_ep, to_ep=to_ep, name=name, payload=payload
+            )
             return
 
         raise RuntimeError(f"ProcessActorBackend cannot route to {to_ep.scheme!r}")
 
     async def chan_get(self, *, ep: Endpoint, name: str, timeout: Optional[float]):
         if ep.scheme == "process" and ep.actor_id == self._actor_id:
-            raw = await self._send({"op": "chan_get", "id": str(uuid.uuid4()), "name": name, "timeout": timeout})
+            raw = await self._send(
+                {
+                    "op": "chan_get",
+                    "id": str(uuid.uuid4()),
+                    "name": name,
+                    "timeout": timeout,
+                }
+            )
             return unwrap_payload(raw)
 
         if ep.scheme == "ucx":
             if not ucx.have_ucx():
-                raise RuntimeError("UCX requested but UCX is not available (need ucxx or ucp)")
+                raise RuntimeError(
+                    "UCX requested but UCX is not available (need ucxx or ucp)"
+                )
             host, port_str = ep.address.rsplit(":", 1)
 
             async def _op(e):
-                await ucx.send_control(e, {"op": "chan_get", "name": name, "timeout": timeout, "actor_id": ep.actor_id})
+                await ucx.send_control(
+                    e,
+                    {
+                        "op": "chan_get",
+                        "name": name,
+                        "timeout": timeout,
+                        "actor_id": ep.actor_id,
+                    },
+                )
                 rep = await ucx.recv_control(e)
                 if not rep.get("ok", False):
                     raise RuntimeError(rep)
@@ -246,7 +317,7 @@ class ProcessActorBackend(ActorBackend):
         raise RuntimeError("Endpoint mismatch")
 
     async def _send(self, msg: Dict):
-        loop = (self._loop or asyncio.get_running_loop())
+        loop = self._loop or asyncio.get_running_loop()
 
         def _rt():
             with self._io_lock:

@@ -1,17 +1,19 @@
 # byzpy/engine/actor/backends/remote.py
 from __future__ import annotations
+
 import asyncio
-import cloudpickle
 import traceback
 import uuid
-from typing import Dict, Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
-from .._wire import send_obj, recv_obj
+import cloudpickle
+
+from .._wire import recv_obj, send_obj
 from ..base import ActorBackend
 from ..channels import Endpoint
+from ..ipc import unwrap_payload, wrap_payload
 from ..router import channel_router
-from ..transports import ucx, tcp
-from ..ipc import wrap_payload, unwrap_payload
+from ..transports import tcp, ucx
 
 
 class RemoteActorBackend(ActorBackend):
@@ -25,12 +27,16 @@ class RemoteActorBackend(ActorBackend):
 
     async def start(self) -> None:
         if self._reader is None or self._writer is None:
-            self._reader, self._writer = await asyncio.open_connection(self._host, self._port)
+            self._reader, self._writer = await asyncio.open_connection(
+                self._host, self._port
+            )
 
     def _ensure_open(self) -> Tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         r, w = self._reader, self._writer
         if r is None or w is None:
-            raise RuntimeError("RemoteActorBackend not started. Call await start() first.")
+            raise RuntimeError(
+                "RemoteActorBackend not started. Call await start() first."
+            )
         return r, w
 
     async def close(self) -> None:
@@ -40,7 +46,9 @@ class RemoteActorBackend(ActorBackend):
                 return
             try:
                 if self._actor_id is not None:
-                    await send_obj(self._writer, {"op": "close", "actor_id": self._actor_id})
+                    await send_obj(
+                        self._writer, {"op": "close", "actor_id": self._actor_id}
+                    )
                     await recv_obj(self._reader)
             except Exception:
                 pass
@@ -54,12 +62,22 @@ class RemoteActorBackend(ActorBackend):
                 self._writer = None
                 self._actor_id = None
 
-    async def construct(self, cls_or_factory: Any, *, args: tuple, kwargs: dict) -> None:
+    async def construct(
+        self, cls_or_factory: Any, *, args: tuple, kwargs: dict
+    ) -> None:
         async with self._io_lock:
             await self.start()
             r, w = self._ensure_open()
             blob = cloudpickle.dumps(cls_or_factory)
-            await send_obj(w, {"op": "construct", "blob": blob, "args": wrap_payload(args), "kwargs": wrap_payload(kwargs)})
+            await send_obj(
+                w,
+                {
+                    "op": "construct",
+                    "blob": blob,
+                    "args": wrap_payload(args),
+                    "kwargs": wrap_payload(kwargs),
+                },
+            )
             rep = await recv_obj(r)
             if not rep.get("ok", False):
                 et, em, tb = rep["payload"]
@@ -72,8 +90,16 @@ class RemoteActorBackend(ActorBackend):
                 raise RuntimeError("Remote actor not constructed.")
             await self.start()
             r, w = self._ensure_open()
-            await send_obj(w, {"op": "call", "actor_id": self._actor_id,
-                               "method": method, "args": wrap_payload(args), "kwargs": wrap_payload(kwargs)})
+            await send_obj(
+                w,
+                {
+                    "op": "call",
+                    "actor_id": self._actor_id,
+                    "method": method,
+                    "args": wrap_payload(args),
+                    "kwargs": wrap_payload(kwargs),
+                },
+            )
             rep = await recv_obj(r)
             if rep.get("ok", False):
                 return unwrap_payload(rep["payload"])
@@ -100,27 +126,35 @@ class RemoteActorBackend(ActorBackend):
                 raise RuntimeError(rep)
             return Endpoint(**rep["payload"])
 
-    async def chan_put(self, *, from_ep: Endpoint, to_ep: Endpoint, name: str, payload: Any) -> None:
+    async def chan_put(
+        self, *, from_ep: Endpoint, to_ep: Endpoint, name: str, payload: Any
+    ) -> None:
         local_payload = unwrap_payload(payload)
         if to_ep.scheme == "thread":
             peer = channel_router.resolve("thread", to_ep.actor_id)
             if peer is None:
                 raise RuntimeError(f"no local thread actor {to_ep.actor_id}")
-            await peer.chan_put(from_ep=from_ep, to_ep=to_ep, name=name, payload=local_payload)
+            await peer.chan_put(
+                from_ep=from_ep, to_ep=to_ep, name=name, payload=local_payload
+            )
             return
 
         if to_ep.scheme == "process":
             peer = channel_router.resolve("process", to_ep.actor_id)
             if peer is None:
                 raise RuntimeError(f"no local process actor {to_ep.actor_id}")
-            await peer.chan_put(from_ep=from_ep, to_ep=to_ep, name=name, payload=local_payload)
+            await peer.chan_put(
+                from_ep=from_ep, to_ep=to_ep, name=name, payload=local_payload
+            )
             return
 
         if to_ep.scheme == "gpu":
             peer = channel_router.resolve("gpu", to_ep.actor_id)
             if peer is None:
                 raise RuntimeError(f"no local gpu actor {to_ep.actor_id}")
-            await peer.chan_put(from_ep=from_ep, to_ep=to_ep, name=name, payload=local_payload)
+            await peer.chan_put(
+                from_ep=from_ep, to_ep=to_ep, name=name, payload=local_payload
+            )
             return
 
         dest_hostport = to_ep.address
@@ -130,13 +164,16 @@ class RemoteActorBackend(ActorBackend):
             async with self._io_lock:
                 await self.start()
                 r, w = self._ensure_open()
-                await send_obj(w, {
-                    "op": "chan_put",
-                    "from": from_ep.__dict__,
-                    "to": to_ep.__dict__,
-                    "name": name,
-                    "payload": wrapped,
-                })
+                await send_obj(
+                    w,
+                    {
+                        "op": "chan_put",
+                        "from": from_ep.__dict__,
+                        "to": to_ep.__dict__,
+                        "name": name,
+                        "payload": wrapped,
+                    },
+                )
                 rep = await recv_obj(r)
                 if not rep.get("ok", False):
                     raise RuntimeError(rep)
@@ -144,16 +181,21 @@ class RemoteActorBackend(ActorBackend):
 
         if to_ep.scheme == "ucx":
             if not ucx.have_ucx():
-                raise RuntimeError("UCX requested but UCX is not available (need ucxx or ucp)")
+                raise RuntimeError(
+                    "UCX requested but UCX is not available (need ucxx or ucp)"
+                )
             host, port_str = to_ep.address.rsplit(":", 1)
 
             async def _op(e):
-                await ucx.send_control(e, {
-                    "op": "chan_put",
-                    "from": from_ep.__dict__,
-                    "to": to_ep.__dict__,
-                    "name": name,
-                })
+                await ucx.send_control(
+                    e,
+                    {
+                        "op": "chan_put",
+                        "from": from_ep.__dict__,
+                        "to": to_ep.__dict__,
+                        "name": name,
+                    },
+                )
                 tag, desc = ucx.pack_payload(wrapped)
                 await ucx.send_payload(e, tag, desc, wrapped)
                 rep = await ucx.recv_control(e)
@@ -190,11 +232,21 @@ class RemoteActorBackend(ActorBackend):
 
         if ep.scheme == "ucx":
             if not ucx.have_ucx():
-                raise RuntimeError("UCX requested but UCX is not available (need ucxx or ucp)")
+                raise RuntimeError(
+                    "UCX requested but UCX is not available (need ucxx or ucp)"
+                )
             host, port_str = ep.address.rsplit(":", 1)
 
             async def _op(e):
-                await ucx.send_control(e, {"op": "chan_get", "name": name, "timeout": timeout, "actor_id": ep.actor_id})
+                await ucx.send_control(
+                    e,
+                    {
+                        "op": "chan_get",
+                        "name": name,
+                        "timeout": timeout,
+                        "actor_id": ep.actor_id,
+                    },
+                )
                 rep = await ucx.recv_control(e)
                 if not rep.get("ok", False):
                     raise RuntimeError(rep)
@@ -286,19 +338,39 @@ class RemoteActorServer:
                 elif op == "get_ep":
                     if not bound_aid:
                         raise RuntimeError("no actor on this connection")
-                    await send_obj(writer, {"ok": True,
-                        "payload": {"scheme": "tcp", "address": self._hostport(), "actor_id": bound_aid}})
+                    await send_obj(
+                        writer,
+                        {
+                            "ok": True,
+                            "payload": {
+                                "scheme": "tcp",
+                                "address": self._hostport(),
+                                "actor_id": bound_aid,
+                            },
+                        },
+                    )
 
                 elif op == "chan_open":
                     if not bound_aid:
                         raise RuntimeError("no actor on this connection")
                     name = req["name"]
                     await self._ensure_mb(bound_aid, name)
-                    await send_obj(writer, {"ok": True,
-                        "payload": {"scheme": "tcp", "address": self._hostport(), "actor_id": bound_aid}})
+                    await send_obj(
+                        writer,
+                        {
+                            "ok": True,
+                            "payload": {
+                                "scheme": "tcp",
+                                "address": self._hostport(),
+                                "actor_id": bound_aid,
+                            },
+                        },
+                    )
 
                 elif op == "chan_put":
-                    to = req["to"]; payload = req["payload"]; name = req["name"]
+                    to = req["to"]
+                    payload = req["payload"]
+                    name = req["name"]
                     to_aid = to["actor_id"]
                     q = await self._ensure_mb(to_aid, name)
                     await q.put((req["from"], payload))
@@ -308,13 +380,16 @@ class RemoteActorServer:
                     aid = bound_aid or req.get("actor_id")
                     if not aid:
                         raise RuntimeError("actor_id missing for chan_get")
-                    name = req["name"]; timeout = req.get("timeout")
+                    name = req["name"]
+                    timeout = req.get("timeout")
                     q = await self._ensure_mb(aid, name)
                     if timeout is None:
                         fr, payload = await q.get()
                     else:
                         try:
-                            fr, payload = await asyncio.wait_for(q.get(), timeout=timeout)
+                            fr, payload = await asyncio.wait_for(
+                                q.get(), timeout=timeout
+                            )
                         except asyncio.TimeoutError:
                             payload = None
                     await send_obj(writer, {"ok": True, "payload": payload})
@@ -324,15 +399,20 @@ class RemoteActorServer:
                         raise RuntimeError("no actor on this connection")
                     obj = self._actors[bound_aid]
                     import inspect
+
                     call_args = unwrap_payload(req.get("args", ()))
                     call_kwargs = unwrap_payload(req.get("kwargs", {}) or {})
                     if inspect.iscoroutinefunction(getattr(obj, req["method"])):
-                        res = await getattr(obj, req["method"])(*call_args, **call_kwargs)
+                        res = await getattr(obj, req["method"])(
+                            *call_args, **call_kwargs
+                        )
                     else:
                         loop = asyncio.get_running_loop()
                         res = await loop.run_in_executor(
                             None,
-                            lambda: getattr(obj, req["method"])(*call_args, **call_kwargs)
+                            lambda: getattr(obj, req["method"])(
+                                *call_args, **call_kwargs
+                            ),
                         )
                     await send_obj(writer, {"ok": True, "payload": wrap_payload(res)})
 
@@ -343,13 +423,25 @@ class RemoteActorServer:
                     await send_obj(writer, {"ok": True})
 
                 else:
-                    await send_obj(writer, {"ok": False, "payload": ("RuntimeError", f"unknown op {op}", "")})
+                    await send_obj(
+                        writer,
+                        {
+                            "ok": False,
+                            "payload": ("RuntimeError", f"unknown op {op}", ""),
+                        },
+                    )
 
         except asyncio.IncompleteReadError:
             pass
         except Exception as e:
             try:
-                await send_obj(writer, {"ok": False, "payload": (type(e).__name__, str(e), traceback.format_exc())})
+                await send_obj(
+                    writer,
+                    {
+                        "ok": False,
+                        "payload": (type(e).__name__, str(e), traceback.format_exc()),
+                    },
+                )
             except Exception:
                 pass
         finally:

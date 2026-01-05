@@ -276,4 +276,3 @@ After installation:
 2. Explore the [Architecture Overview](overview.md)
 3. Check out the [Examples](../examples/README.md)
 4. Review the [API Reference](api_reference.md)
-

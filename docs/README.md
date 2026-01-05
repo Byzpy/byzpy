@@ -111,4 +111,3 @@ sphinx-build -b html docs/source docs/_build/html
 ## CI/CD
 
 Documentation is automatically built in CI/CD pipelines. See `.github/workflows/` for configuration.
-

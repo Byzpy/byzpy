@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import Protocol, TypeVar, Any, Sequence, runtime_checkable
+
+from typing import Any, Protocol, Sequence, TypeVar, runtime_checkable
 
 Tensor = TypeVar("Tensor")
 
@@ -7,6 +8,7 @@ Tensor = TypeVar("Tensor")
 @runtime_checkable
 class _Backend(Protocol[Tensor]):
     name: str
+
     def asarray(self, x: Tensor, like: Tensor | None = None) -> Tensor: ...
     def stack(self, xs: Sequence[Tensor], axis: int = 0) -> Tensor: ...
     def median(self, x: Tensor, axis: int = 0) -> Tensor: ...

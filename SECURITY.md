@@ -11,7 +11,7 @@ Report issues against the latest release or the `main` branch whenever possible.
 
 ## Reporting a Vulnerability
 
-1. Email [security@veilora.ai](mailto:security@veilora.ai) with the subject `ByzPy Security`.
+1. Report security vulnerabilities through [GitHub Security Advisories](https://github.com/Byzpy/byzpy/security/advisories/new) or contact the project maintainers.
 2. Include:
    - A description of the vulnerability and potential impact.
    - Steps or a proof-of-concept to reproduce the issue.

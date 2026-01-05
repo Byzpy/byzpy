@@ -1,15 +1,23 @@
 from __future__ import annotations
 
-from typing import Mapping, Optional, Sequence
 import inspect
+from typing import Mapping, Optional, Sequence
 
+import numpy as np
 import torch
-
 from byzpy.aggregators.base import Aggregator
 from byzpy.attacks.base import Attack
+from byzpy.engine.graph.ops import (
+    CallableOp,
+    RemoteCallableOp,
+    make_single_operator_graph,
+)
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
-from byzpy.engine.storage.shared_store import SharedTensorHandle, register_tensor, cleanup_tensor
-import numpy as np
+from byzpy.engine.storage.shared_store import (
+    SharedTensorHandle,
+    cleanup_tensor,
+    register_tensor,
+)
 
 from .application import (
     ByzantineNodeApplication,
@@ -17,11 +25,6 @@ from .application import (
     NodeApplication,
 )
 from .base import ByzantineNode, HonestNode
-from byzpy.engine.graph.ops import (
-    CallableOp,
-    RemoteCallableOp,
-    make_single_operator_graph,
-)
 
 
 class _DistributedNodeBase:
@@ -74,7 +77,12 @@ class DistributedHonestNode(_DistributedNodeBase, HonestNode):
         name: Optional[str] = None,
     ) -> None:
         self._aggregator = aggregator
-        super().__init__(app_cls=HonestNodeApplication, name=name, actor_pool=actor_pool, metadata=metadata)
+        super().__init__(
+            app_cls=HonestNodeApplication,
+            name=name,
+            actor_pool=actor_pool,
+            metadata=metadata,
+        )
         self._register_aggregation_pipeline()
         self._register_gradient_pipeline()
 
@@ -84,7 +92,9 @@ class DistributedHonestNode(_DistributedNodeBase, HonestNode):
         Subclasses override this to provide the *local* gradient computation. The
         base ``honest_gradient`` API will run it through the scheduler.
         """
-        raise NotImplementedError("local_honest_gradient() must be implemented by subclasses.")
+        raise NotImplementedError(
+            "local_honest_gradient() must be implemented by subclasses."
+        )
 
     # ---- pipeline registration ------------------------------------------------
     def _register_aggregation_pipeline(self) -> None:
@@ -125,7 +135,9 @@ class DistributedHonestNode(_DistributedNodeBase, HonestNode):
     def honest_gradient(self, x, y):
         return self._app.honest_gradient_sync({"x": x, "y": y})
 
-    def _register_shared_gradients(self, grads: Sequence[torch.Tensor]) -> list[SharedTensorHandle]:
+    def _register_shared_gradients(
+        self, grads: Sequence[torch.Tensor]
+    ) -> list[SharedTensorHandle]:
         handles: list[SharedTensorHandle] = []
         for grad in grads:
             arr = grad.detach().cpu().numpy()
@@ -141,10 +153,14 @@ class DistributedByzantineNode(_DistributedNodeBase, ByzantineNode):
     _distributed_user_bz = None  # type: ignore[assignment]
 
     def __init_subclass__(cls, **kwargs):
+        """Initialize a subclass with distributed node configuration."""
         super().__init_subclass__(**kwargs)
         inherited_impl = getattr(cls, "_distributed_user_bz", None)
         user_impl = cls.__dict__.get("byzantine_gradient")
-        if user_impl is None or user_impl is DistributedByzantineNode.byzantine_gradient:
+        if (
+            user_impl is None
+            or user_impl is DistributedByzantineNode.byzantine_gradient
+        ):
             cls._distributed_user_bz = inherited_impl
         else:
             cls._distributed_user_bz = user_impl
@@ -163,7 +179,12 @@ class DistributedByzantineNode(_DistributedNodeBase, ByzantineNode):
         name: Optional[str] = None,
     ) -> None:
         self.attack = attack
-        super().__init__(app_cls=ByzantineNodeApplication, name=name, actor_pool=actor_pool, metadata=metadata)
+        super().__init__(
+            app_cls=ByzantineNodeApplication,
+            name=name,
+            actor_pool=actor_pool,
+            metadata=metadata,
+        )
         self._custom_bz_callable = None
         self._custom_input_keys: tuple[str, ...] = ()
         self._custom_required_keys: tuple[str, ...] = ()
@@ -220,9 +241,13 @@ class DistributedByzantineNode(_DistributedNodeBase, ByzantineNode):
         self._app.register_pipeline(self._app.ATTACK_PIPELINE, graph)
 
     # Allow subclasses to customise default attack inputs
-    def prepare_attack_inputs(self, *, x=None, y=None, honest_grads=None, base_grad=None, model=None) -> Mapping[str, object]:
+    def prepare_attack_inputs(
+        self, *, x=None, y=None, honest_grads=None, base_grad=None, model=None
+    ) -> Mapping[str, object]:
         if self._custom_bz_callable is not None:
-            raise RuntimeError("prepare_attack_inputs should not be used when byzantine_gradient is overridden.")
+            raise RuntimeError(
+                "prepare_attack_inputs should not be used when byzantine_gradient is overridden."
+            )
         inputs = {}
         if getattr(self.attack, "uses_model_batch", False):
             if model is None:
@@ -262,7 +287,9 @@ class DistributedByzantineNode(_DistributedNodeBase, ByzantineNode):
         for key in self._custom_input_keys:
             value = data.get(key)
             if key in self._custom_required_keys and value is None:
-                raise ValueError(f"Custom byzantine_gradient requires argument {key!r}.")
+                raise ValueError(
+                    f"Custom byzantine_gradient requires argument {key!r}."
+                )
             if value is not None:
                 inputs[key] = value
         return inputs
@@ -285,7 +312,9 @@ class DistributedByzantineNode(_DistributedNodeBase, ByzantineNode):
         )
         return self._app.run_attack_sync(inputs=inputs)
 
-    async def byzantine_gradient_async(self, *, x=None, y=None, honest_grads=None, base_grad=None, model=None):
+    async def byzantine_gradient_async(
+        self, *, x=None, y=None, honest_grads=None, base_grad=None, model=None
+    ):
         if self._custom_bz_callable is not None:
             inputs = self._build_custom_inputs(
                 x=x,

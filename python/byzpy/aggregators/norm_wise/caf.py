@@ -4,18 +4,18 @@ from typing import Any, Iterable, Sequence
 
 import numpy as np
 
-from ..base import Aggregator
-from ..coordinate_wise._tiling import flatten_gradients
-from .._chunking import select_adaptive_chunk_size
 from ...configs.backend import get_backend
-from ...engine.graph.subtask import SubTask
 from ...engine.graph.operator import OpContext
+from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
+from .._chunking import select_adaptive_chunk_size
+from ..base import Aggregator
+from ..coordinate_wise._tiling import flatten_gradients
 
 try:  # optional torch for conversions
     import torch
@@ -146,11 +146,11 @@ def _caf_compute(data: np.ndarray, f: int, *, power_iters: int) -> np.ndarray:
             best_mu = mu.copy()
 
         proj = diffs @ vec
-        tau = proj ** 2
+        tau = proj**2
         tau_max = float(tau.max())
         if tau_max <= 1e-12:
             break
-        weights *= (1.0 - tau / tau_max)
+        weights *= 1.0 - tau / tau_max
         weights = np.clip(weights, 0.0, None)
         total = float(weights.sum())
         if total <= 0:
@@ -159,7 +159,9 @@ def _caf_compute(data: np.ndarray, f: int, *, power_iters: int) -> np.ndarray:
     return best_mu
 
 
-def _dominant_eigenpair(diffs: np.ndarray, weights: np.ndarray, iters: int) -> tuple[float, np.ndarray]:
+def _dominant_eigenpair(
+    diffs: np.ndarray, weights: np.ndarray, iters: int
+) -> tuple[float, np.ndarray]:
     rng = np.random.default_rng(0)
     vec = rng.normal(size=diffs.shape[1]).astype(diffs.dtype, copy=False)
     norm = np.linalg.norm(vec)
@@ -178,11 +180,13 @@ def _dominant_eigenpair(diffs: np.ndarray, weights: np.ndarray, iters: int) -> t
         vec = next_vec / next_norm
 
     proj = diffs @ vec
-    eig = float(np.sum(weights * (proj ** 2)) / max(1e-12, weights.sum()))
+    eig = float(np.sum(weights * (proj**2)) / max(1e-12, weights.sum()))
     return eig, vec
 
 
-def _caf_chunk_fetch(handle: SharedTensorHandle, start: int, end: int) -> tuple[int, np.ndarray]:
+def _caf_chunk_fetch(
+    handle: SharedTensorHandle, start: int, end: int
+) -> tuple[int, np.ndarray]:
     with open_tensor(handle) as flat:
         chunk = np.array(flat[start:end], copy=True)
     return start, chunk

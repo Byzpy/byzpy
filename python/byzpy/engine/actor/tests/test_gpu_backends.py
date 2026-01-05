@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import asyncio
 import contextlib
 import math
@@ -9,20 +10,16 @@ from typing import Tuple
 import pytest
 import pytest_asyncio
 import torch
-
-from byzpy.engine.actor.base import ActorRef
-from byzpy.engine.actor.channels import open_channel
-from byzpy.engine.actor.backends.thread import ThreadActorBackend
-from byzpy.engine.actor.backends.process import ProcessActorBackend
-from byzpy.engine.actor.backends.remote import (
-    RemoteActorBackend,
-    start_actor_server,
-)
 from byzpy.engine.actor.backends.gpu import (
     GPUActorBackend,
     UCXRemoteActorBackend,
     start_ucx_actor_server,
 )
+from byzpy.engine.actor.backends.process import ProcessActorBackend
+from byzpy.engine.actor.backends.remote import RemoteActorBackend, start_actor_server
+from byzpy.engine.actor.backends.thread import ThreadActorBackend
+from byzpy.engine.actor.base import ActorRef
+from byzpy.engine.actor.channels import open_channel
 from byzpy.engine.actor.transports.ucx import _ucx_mod
 
 
@@ -32,12 +29,15 @@ def _have_cuda() -> bool:
     except Exception:
         return False
 
+
 def _have_cupy() -> bool:
     try:
         import cupy as _
+
         return True
     except Exception:
         return False
+
 
 def _have_ucx() -> bool:
     return _ucx_mod() is not None
@@ -74,7 +74,9 @@ async def _wait_until_listening_tcp(host: str, port: int, timeout: float = 3.0) 
         except Exception as e:
             last_err = e
             if asyncio.get_event_loop().time() >= deadline:
-                raise TimeoutError(f"TCP server {host}:{port} did not start: {last_err!r}")
+                raise TimeoutError(
+                    f"TCP server {host}:{port} did not start: {last_err!r}"
+                )
             await asyncio.sleep(0.05)
 
 
@@ -94,7 +96,9 @@ async def _wait_until_listening_ucx(host: str, port: int, timeout: float = 5.0) 
         except Exception as e:
             last_err = e
             if asyncio.get_event_loop().time() >= deadline:
-                raise TimeoutError(f"UCX server {host}:{port} did not start: {last_err!r}")
+                raise TimeoutError(
+                    f"UCX server {host}:{port} did not start: {last_err!r}"
+                )
             await asyncio.sleep(0.05)
 
 
@@ -213,7 +217,9 @@ async def ucx_server_addr():
         th.join(timeout=3.0)
 
 
-async def _make_backend(kind: str, tcp_addr: Tuple[str, int], ucx_addr: Tuple[str, int] | None):
+async def _make_backend(
+    kind: str, tcp_addr: Tuple[str, int], ucx_addr: Tuple[str, int] | None
+):
     if kind == "thread":
         return ThreadActorBackend()
     if kind == "process":
@@ -272,13 +278,17 @@ _GPU_MATRIX = [
     ("gpu", "gpu"),
 ]
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kindA,kindB", _GPU_MATRIX)
-async def test_gpu_cross_backend_matrix_cpu(kindA, kindB, tcp_server_addr, ucx_server_addr=None):
+async def test_gpu_cross_backend_matrix_cpu(
+    kindA, kindB, tcp_server_addr, ucx_server_addr=None
+):
     A = await _make_backend(kindA, tcp_server_addr, ucx_server_addr)
     B = await _make_backend(kindB, tcp_server_addr, ucx_server_addr)
 
-    await A.start(); await B.start()
+    await A.start()
+    await B.start()
     await A.construct(Worker, args=(), kwargs={})
     await B.construct(Worker, args=(), kwargs={})
     try:
@@ -294,7 +304,8 @@ async def test_gpu_cross_backend_matrix_cpu(kindA, kindB, tcp_server_addr, ucx_s
         assert isinstance(got, torch.Tensor)
         assert torch.equal(got, torch.arange(7, dtype=torch.float32))
     finally:
-        await A.close(); await B.close()
+        await A.close()
+        await B.close()
 
 
 _UCX_MATRIX = [
@@ -303,17 +314,21 @@ _UCX_MATRIX = [
     ("ucx", "ucx"),
 ]
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kindA,kindB", _UCX_MATRIX)
 @pytest.mark.skipif(not UCX_GPU_OK, reason="UCX/CUDA/CuPy not available")
-async def test_gpu_ucx_cross_backend_cuda(kindA, kindB, tcp_server_addr, ucx_server_addr):
+async def test_gpu_ucx_cross_backend_cuda(
+    kindA, kindB, tcp_server_addr, ucx_server_addr
+):
     """
     UCX path with CUDA tensors: exercises GPU→UCX and UCX→GPU, plus UCX→UCX.
     """
     A = await _make_backend(kindA, tcp_server_addr, ucx_server_addr)
     B = await _make_backend(kindB, tcp_server_addr, ucx_server_addr)
 
-    await A.start(); await B.start()
+    await A.start()
+    await B.start()
     await A.construct(Worker, args=(), kwargs={})
     await B.construct(Worker, args=(), kwargs={})
 
@@ -331,7 +346,8 @@ async def test_gpu_ucx_cross_backend_cuda(kindA, kindB, tcp_server_addr, ucx_ser
         assert isinstance(got, torch.Tensor)
         assert torch.equal(got.to("cpu"), torch.arange(9, dtype=torch.float32))
     finally:
-        await A.close(); await B.close()
+        await A.close()
+        await B.close()
 
 
 @pytest.mark.asyncio
@@ -365,7 +381,8 @@ async def test_gpu_actorref_ucx_roundtrip(ucx_server_addr, tcp_server_addr):
     refB = ActorRef(ub)
 
     async with refA, refB:
-        await refA._backend.start(); await refB._backend.start()
+        await refA._backend.start()
+        await refB._backend.start()
         await refA._backend.construct(Worker, args=(), kwargs={})
         await refB._backend.construct(Worker, args=(), kwargs={})
 

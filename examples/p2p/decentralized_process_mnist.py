@@ -35,14 +35,15 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from byzpy.configs.actor import set_actor
-from byzpy.engine.node.actors import HonestNodeActor, ByzantineNodeActor
+from byzpy.engine.node.actors import ByzantineNodeActor, HonestNodeActor
 from byzpy.engine.node.context import ProcessContext
-from byzpy.engine.peer_to_peer.runner import DecentralizedPeerToPeer
 from byzpy.engine.node.decentralized import DecentralizedNode
+from byzpy.engine.peer_to_peer.runner import DecentralizedPeerToPeer
 from byzpy.engine.peer_to_peer.topology import Topology
+
 from examples.p2p.nodes import (
-    DistributedP2PHonestNode,
     DistributedP2PByzNode,
+    DistributedP2PHonestNode,
     SmallCNN,
     select_pool_backend,
 )
@@ -194,7 +195,9 @@ async def main():
 
     # Track training state per node
     training_rounds: dict[str, int] = {node_id: 0 for node_id in nodes.keys()}
-    node_half_step_results: dict[str, torch.Tensor] = {}  # Track each node's last half-step result
+    node_half_step_results: dict[str, torch.Tensor] = (
+        {}
+    )  # Track each node's last half-step result
 
     # Set up message handlers that trigger aggregation when gradients are received
     async def setup_async_training():
@@ -220,6 +223,7 @@ async def main():
                     self_theta_half = node_half_step_results[nid]
 
                     from byzpy.engine.peer_to_peer.runner import _NODE_OBJECT_REGISTRY
+
                     node_key = f"honest_{nid}"
                     node_obj = _NODE_OBJECT_REGISTRY.get(node_key)
 
@@ -227,19 +231,24 @@ async def main():
                         try:
                             node_obj.p2p_aggregate_and_set(
                                 self_theta_half=self_theta_half,
-                                neighbor_vectors=neighbor_vecs
+                                neighbor_vectors=neighbor_vecs,
                             )
                             training_rounds[nid] += 1
                             p2p._gradient_cache[nid] = []
                         except Exception as e:
                             pass
+
                 return on_gradient
 
-            node.register_message_handler("gradient", make_async_handler(node_id, node, is_honest))
+            node.register_message_handler(
+                "gradient", make_async_handler(node_id, node, is_honest)
+            )
 
     await setup_async_training()
 
-    async def node_training_loop(node_id: str, node: DecentralizedNode, is_honest: bool):
+    async def node_training_loop(
+        node_id: str, node: DecentralizedNode, is_honest: bool
+    ):
         """Independent training loop for each node."""
         node_idx = int(node_id)
         max_rounds = rounds
@@ -251,6 +260,7 @@ async def main():
                 neighbor_vecs = p2p._gradient_cache.get(node_id, [])
                 if neighbor_vecs:
                     from byzpy.engine.peer_to_peer.runner import _NODE_OBJECT_REGISTRY
+
                     node_key = f"byz_{node_id}"
                     node_obj = _NODE_OBJECT_REGISTRY.get(node_key)
 
@@ -258,24 +268,32 @@ async def main():
                         template = neighbor_vecs[0] if neighbor_vecs else None
                         if template is not None:
                             malicious = node_obj.p2p_broadcast_vector(
-                                neighbor_vectors=neighbor_vecs if neighbor_vecs else None,
-                                like=template
+                                neighbor_vectors=(
+                                    neighbor_vecs if neighbor_vecs else None
+                                ),
+                                like=template,
                             )
-                            await node.broadcast_message("gradient", {"vector": malicious})
+                            await node.broadcast_message(
+                                "gradient", {"vector": malicious}
+                            )
             else:
                 try:
                     result = await node.execute_pipeline("half_step", {"lr": lr})
                     half_step_vector = result.get("half_step")
                     if half_step_vector is not None:
                         node_half_step_results[node_id] = half_step_vector
-                        await node.broadcast_message("gradient", {"vector": half_step_vector})
+                        await node.broadcast_message(
+                            "gradient", {"vector": half_step_vector}
+                        )
                 except Exception as e:
                     pass
 
             await asyncio.sleep(0.3)
 
     training_tasks = [
-        asyncio.create_task(node_training_loop(node_id, node, int(node_id) < len(honest_actors)))
+        asyncio.create_task(
+            node_training_loop(node_id, node, int(node_id) < len(honest_actors))
+        )
         for node_id, node in nodes.items()
     ]
 
@@ -328,4 +346,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

@@ -1,8 +1,7 @@
 import torch
-
-from byzpy.pre_aggregators import NearestNeighborMixing
 from byzpy.engine.graph.operator import OpContext
 from byzpy.engine.storage.shared_store import cleanup_tensor
+from byzpy.pre_aggregators import NearestNeighborMixing
 
 
 def test_nnm_simple_line():

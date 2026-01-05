@@ -1,15 +1,16 @@
 from __future__ import annotations
+
 """
 Decentralized P2P entry point.
 
 This wraps the refactored DecentralizedPeerToPeer runner to preserve the
 PeerToPeer API while using DecentralizedNode infrastructure.
 """
-from typing import List, Optional, Callable
+from typing import Callable, List, Optional
 
-from .runner import DecentralizedPeerToPeer
-from ..node.actors import HonestNodeActor, ByzantineNodeActor
+from ..node.actors import ByzantineNodeActor, HonestNodeActor
 from ..node.context import NodeContext
+from .runner import DecentralizedPeerToPeer
 from .topology import Topology
 
 

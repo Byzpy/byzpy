@@ -11,16 +11,23 @@ from dataclasses import dataclass
 from typing import Sequence
 
 import torch
-
 from byzpy.attacks.inf import InfAttack
 from byzpy.engine.graph.ops import make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
 
 try:
-    from ._worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+    from ._worker_args import (
+        DEFAULT_WORKER_COUNTS,
+        coerce_worker_counts,
+        parse_worker_counts,
+    )
 except ImportError:
-    from _worker_args import DEFAULT_WORKER_COUNTS, coerce_worker_counts, parse_worker_counts
+    from _worker_args import (
+        DEFAULT_WORKER_COUNTS,
+        coerce_worker_counts,
+        parse_worker_counts,
+    )
 
 
 @dataclass(frozen=True)
@@ -36,8 +43,12 @@ class BenchmarkRun:
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark Inf attack chunking.")
     parser.add_argument("--num-grads", type=int, default=64, help="Honest gradients")
-    parser.add_argument("--grad-dim", type=int, default=65536, help="Gradient dimension")
-    parser.add_argument("--chunk-size", type=int, default=16384, help="Features per subtask")
+    parser.add_argument(
+        "--grad-dim", type=int, default=65536, help="Gradient dimension"
+    )
+    parser.add_argument(
+        "--chunk-size", type=int, default=16384, help="Features per subtask"
+    )
     default_workers = ",".join(str(count) for count in DEFAULT_WORKER_COUNTS)
     parser.add_argument(
         "--pool-workers",
@@ -60,7 +71,9 @@ def _make_grads(n: int, dim: int, seed: int) -> list[torch.Tensor]:
     return [torch.randn(dim, generator=gen) for _ in range(n)]
 
 
-def _time_direct(attack: InfAttack, grads: Sequence[torch.Tensor], *, iterations: int, warmup: int) -> float:
+def _time_direct(
+    attack: InfAttack, grads: Sequence[torch.Tensor], *, iterations: int, warmup: int
+) -> float:
     for _ in range(warmup):
         attack.apply(honest_grads=grads)
     start = time.perf_counter()
@@ -89,7 +102,9 @@ async def _time_scheduler(
 
 
 async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
-    worker_counts = coerce_worker_counts(getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS))
+    worker_counts = coerce_worker_counts(
+        getattr(args, "pool_workers", DEFAULT_WORKER_COUNTS)
+    )
     grads = _make_grads(args.num_grads, args.grad_dim, args.seed)
     attack = InfAttack(chunk_size=args.chunk_size)
 

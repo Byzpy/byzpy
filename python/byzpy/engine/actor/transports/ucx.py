@@ -3,7 +3,11 @@ from __future__ import annotations
 import asyncio
 import pickle
 import struct
-from typing import Any, Dict, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Tuple
+
+if TYPE_CHECKING:
+    import cupy  # noqa: F401
+    import torch  # noqa: F401
 
 __all__ = [
     "have_ucx",
@@ -38,11 +42,13 @@ def _ucx_mod():
         return _UCX_MOD
     try:
         import ucxx as _m  # RAPIDS UCXX
+
         _UCX_MOD = _m
         return _m
     except Exception:
         try:
             import ucp as _m  # legacy ucx-py
+
             _UCX_MOD = _m
             return _m
         except Exception:
@@ -119,7 +125,10 @@ async def call(host: str, port: int, fn):
     except Exception as e:
         # Retry on common UCX transport errors
         errname = type(e).__name__
-        if any(s in errname for s in ("UCXXError", "UCXXConnectionResetError", "UCXXCanceledError")):
+        if any(
+            s in errname
+            for s in ("UCXXError", "UCXXConnectionResetError", "UCXXCanceledError")
+        ):
             _evict_ucx_endpoint(host, port)
             return await _once()
         raise
@@ -175,19 +184,21 @@ def _is_cuda_tensor(x: Any) -> bool:
         return False
 
 
-def _cuda_to_cupy_view(x) -> "cp.ndarray":
+def _cuda_to_cupy_view(x) -> "cupy.ndarray":
     """
     Zero-copy CUDA tensor -> CuPy view via DLPack (no host sync).
     """
-    import torch, cupy as cp
+    import cupy as cp
+    import torch
 
     t = x.detach().contiguous()
     dl = torch.utils.dlpack.to_dlpack(t)
     return cp.from_dlpack(dl)  # modern API; avoids deprecation
 
 
-def _cupy_to_cuda_tensor(x_cp) -> "torch.Tensor":
-    import torch, cupy as cp
+def _cupy_to_cuda_tensor(x_cp: "cupy.ndarray") -> "torch.Tensor":
+    import cupy as cp
+    import torch
 
     assert isinstance(x_cp, cp.ndarray)
     from_dl = getattr(torch.utils, "dlpack").from_dlpack
@@ -240,7 +251,9 @@ async def send_payload(ep, tag: str, desc: Any, obj: Any) -> None:
         ca = _cuda_to_cupy_view(obj)
         await ep.send(ca)  # device-to-device
     else:
-        data: bytes = desc if isinstance(desc, (bytes, bytearray)) else pickle.dumps(obj)
+        data: bytes = (
+            desc if isinstance(desc, (bytes, bytearray)) else pickle.dumps(obj)
+        )
         await ep.send(_UCX_HDR.pack(len(data)))
         await ep.send(data)
 
@@ -249,7 +262,8 @@ async def recv_payload(ep):
     ctrl = await recv_control(ep)
     tag, desc = ctrl["ptag"], ctrl["desc"]
     if tag == "cuda":
-        import cupy as cp, numpy as np
+        import cupy as cp
+        import numpy as np
 
         nbytes = int(desc["nbytes"])
         buf = cp.empty((nbytes,), dtype=cp.uint8)

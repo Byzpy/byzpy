@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-import pytest
+import asyncio
 import time
 
-from byzpy.engine.node_runner import NodeRunner
-from byzpy.engine.node_cluster import NodeCluster
-from byzpy.engine.transport.local import LocalTransport
-import asyncio
+import pytest
 import torch
+from byzpy.aggregators.geometric_wise import MultiKrum
 from byzpy.engine.graph.ops import make_single_operator_graph
 from byzpy.engine.graph.pool import ActorPool, ActorPoolConfig
 from byzpy.engine.graph.scheduler import NodeScheduler
-from byzpy.aggregators.geometric_wise import MultiKrum
+from byzpy.engine.node_cluster import NodeCluster
+from byzpy.engine.node_runner import NodeRunner
+from byzpy.engine.transport.local import LocalTransport
 
 
 def _step_counter(state: dict) -> dict:
@@ -92,14 +92,22 @@ def test_cluster_with_local_transport():
         cluster.stop_all()
 
 
-@pytest.mark.skip(reason="Flaky test - queue.Empty timeout issue with actor pool in NodeRunner")
+@pytest.mark.skip(
+    reason="Flaky test - queue.Empty timeout issue with actor pool in NodeRunner"
+)
 def test_runner_can_host_scheduler_with_actor_pool():
     def step(state: dict) -> dict:
         if state.get("done"):
             return state
-        vecs = [torch.tensor([1.0, 0.0]), torch.tensor([0.9, 0.1]), torch.tensor([-1.0, 0.0])]
+        vecs = [
+            torch.tensor([1.0, 0.0]),
+            torch.tensor([0.9, 0.1]),
+            torch.tensor([-1.0, 0.0]),
+        ]
         agg = MultiKrum(f=0, q=2, chunk_size=2)
-        graph = make_single_operator_graph(node_name="agg", operator=agg, input_keys=("gradients",))
+        graph = make_single_operator_graph(
+            node_name="agg", operator=agg, input_keys=("gradients",)
+        )
         pool = ActorPool([ActorPoolConfig(backend="thread", count=2)])
 
         async def _run():

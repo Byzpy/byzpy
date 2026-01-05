@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from byzpy.engine.graph.graph import ComputationGraph, GraphNode, graph_input
 from byzpy.engine.graph.operator import Operator
 
@@ -30,7 +29,11 @@ def test_graph_topological_order_and_required_inputs():
 
     graph = ComputationGraph([evaluate, preprocess, train])
 
-    assert [node.name for node in graph.nodes_in_order()] == ["preprocess", "train", "evaluate"]
+    assert [node.name for node in graph.nodes_in_order()] == [
+        "preprocess",
+        "train",
+        "evaluate",
+    ]
     assert graph.outputs == ["evaluate"]
     assert graph.required_inputs == frozenset({"dataset"})
 

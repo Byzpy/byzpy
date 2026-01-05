@@ -1,19 +1,19 @@
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 import torch
-
-from byzpy.engine.graph.graph import ComputationGraph, GraphNode, GraphInput
+from byzpy.engine.graph.graph import ComputationGraph, GraphInput, GraphNode
 from byzpy.engine.graph.operator import MessageTriggerOp
 from byzpy.engine.graph.pool import ActorPoolConfig
-from byzpy.engine.node.application import NodeApplication, HonestNodeApplication
+from byzpy.engine.graph.scheduler import MessageAwareNodeScheduler
+from byzpy.engine.node.application import HonestNodeApplication, NodeApplication
 from byzpy.engine.node.context import InProcessContext
 from byzpy.engine.node.decentralized import DecentralizedNode
-from byzpy.engine.graph.scheduler import MessageAwareNodeScheduler
-
 
 # Test Utilities
+
 
 def create_test_application():
     """Create a test NodeApplication with minimal config."""
@@ -47,6 +47,7 @@ def create_test_node_with_pool(node_id: str = "test-node"):
 
 # Category 4: MessageAwareNodeScheduler Integration with DecentralizedNode
 
+
 @pytest.mark.asyncio
 async def test_decentralizednode_uses_messageaware_scheduler():
     """Verify DecentralizedNode uses MessageAwareNodeScheduler."""
@@ -63,9 +64,7 @@ async def test_decentralizednode_delivers_messages_to_scheduler():
     await node.start()
 
     # Wait for message in scheduler
-    wait_task = asyncio.create_task(
-        node.scheduler.wait_for_message("test_msg")
-    )
+    wait_task = asyncio.create_task(node.scheduler.wait_for_message("test_msg"))
     await asyncio.sleep(0.01)
 
     # Send message to node
@@ -89,9 +88,7 @@ async def test_decentralizednode_message_driven_pipeline():
     node.application.register_pipeline("message_pipeline", graph)
 
     # Start pipeline execution (will wait)
-    exec_task = asyncio.create_task(
-        node.execute_pipeline("message_pipeline", {})
-    )
+    exec_task = asyncio.create_task(node.execute_pipeline("message_pipeline", {}))
     await asyncio.sleep(0.01)
 
     # Send message
@@ -103,6 +100,7 @@ async def test_decentralizednode_message_driven_pipeline():
 
 
 # Category 5: Complex Message-Driven Scenarios
+
 
 @pytest.mark.asyncio
 async def test_multiple_graphs_wait_for_same_message():
@@ -132,14 +130,17 @@ async def test_multiple_graphs_wait_for_same_message():
 
 # Category 7: Integration with Existing Components
 
+
 @pytest.mark.asyncio
 async def test_message_driven_aggregation():
     """Verify aggregation can be triggered by message."""
-    from byzpy.aggregators.base import Aggregator
     from typing import Sequence
+
+    from byzpy.aggregators.base import Aggregator
 
     class _SumAggregator(Aggregator):
         name = "sum"
+
         def aggregate(self, gradients: Sequence[torch.Tensor]) -> torch.Tensor:
             return sum(gradients)
 
@@ -175,10 +176,7 @@ async def test_message_driven_pipeline_with_actor_pool():
 
         def create_subtasks(self, inputs, *, context):
             data = inputs["data"]
-            return [
-                SubTask(fn=lambda x=x: x * 2, args=(x,))
-                for x in data
-            ]
+            return [SubTask(fn=lambda x=x: x * 2, args=(x,)) for x in data]
 
         def reduce_subtasks(self, partials, inputs, *, context):
             return sum(partials)
@@ -203,14 +201,17 @@ async def test_message_driven_pipeline_with_actor_pool():
 
 # Category 8: P2P Aggregation Example
 
+
 @pytest.mark.asyncio
 async def test_simple_p2p_aggregation_triggered_by_message():
     """Verify simple P2P aggregation example from Milestone 2."""
-    from byzpy.aggregators.base import Aggregator
     from typing import Sequence
+
+    from byzpy.aggregators.base import Aggregator
 
     class _MeanAggregator(Aggregator):
         name = "mean"
+
         def aggregate(self, gradients: Sequence[torch.Tensor]) -> torch.Tensor:
             stacked = torch.stack(gradients)
             return stacked.mean(dim=0)
@@ -245,4 +246,3 @@ async def test_simple_p2p_aggregation_triggered_by_message():
     # Node 2 should receive and aggregate
     result = await agg_task
     assert torch.allclose(result["aggregate"], grad1)
-

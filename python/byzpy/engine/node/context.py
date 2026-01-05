@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, AsyncIterator, Dict, Optional
-
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, AsyncIterator, Dict, Optional
 
 if TYPE_CHECKING:
     from .decentralized import DecentralizedNode
@@ -28,7 +26,9 @@ class NodeContext(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def send_message(self, to_node_id: str, message_type: str, payload: Any) -> None:
+    async def send_message(
+        self, to_node_id: str, message_type: str, payload: Any
+    ) -> None:
         """
         Send a message to another node.
 
@@ -77,7 +77,9 @@ class InProcessContext(NodeContext):
         self._running = True
         InProcessContext._registry[node.node_id] = self
 
-    async def send_message(self, to_node_id: str, message_type: str, payload: Any) -> None:
+    async def send_message(
+        self, to_node_id: str, message_type: str, payload: Any
+    ) -> None:
         """Send a message to another node."""
         if not self._running:
             raise RuntimeError("InProcessContext is not started.")
@@ -86,7 +88,11 @@ class InProcessContext(NodeContext):
         if not target_context or not target_context._running:
             raise ValueError(f"Target node {to_node_id} not found or not running.")
         await target_context._inbox.put(
-            {"from": self._node.node_id if self._node else "unknown", "type": message_type, "payload": payload}
+            {
+                "from": self._node.node_id if self._node else "unknown",
+                "type": message_type,
+                "payload": payload,
+            }
         )
 
     async def receive_messages(self) -> AsyncIterator[Any]:
@@ -143,6 +149,7 @@ class ProcessContext(NodeContext):
     async def start(self, node: "DecentralizedNode") -> None:
         """Start the context and create process for the node."""
         import multiprocessing as mp
+
         import cloudpickle
 
         if self._running:
@@ -164,21 +171,23 @@ class ProcessContext(NodeContext):
             "node_id": node.node_id,
             "application": node.application,
             "topology": node.topology,
-            "metadata": node.scheduler.metadata if hasattr(node, 'scheduler') else {},
-            "node_id_map": getattr(node, '_node_id_map', None),  # Include node_id_map for topology routing
+            "metadata": node.scheduler.metadata if hasattr(node, "scheduler") else {},
+            "node_id_map": getattr(
+                node, "_node_id_map", None
+            ),  # Include node_id_map for topology routing
         }
 
         # Include node objects in config (for P2P training)
         # Node objects (the actual node instances, not actors) can be pickled
-        if hasattr(node, '_p2p_node_objects'):
+        if hasattr(node, "_p2p_node_objects"):
             try:
                 node_config["_node_objects"] = node._p2p_node_objects
-            except:
+            except Exception:
                 pass  # Skip if can't be included
 
         # Include initialization callback if provided (for autonomous training loops)
         # This callback is executed in the subprocess after node creation
-        if hasattr(node, '_init_callback') and node._init_callback is not None:
+        if hasattr(node, "_init_callback") and node._init_callback is not None:
             try:
                 node_config["init_callback"] = node._init_callback
             except Exception:
@@ -189,14 +198,16 @@ class ProcessContext(NodeContext):
         # Start process
         self._process = mp.Process(
             target=_process_node_main,
-            args=(config_blob, self._inbox_q, self._outbox_q, self._cmd_q)
+            args=(config_blob, self._inbox_q, self._outbox_q, self._cmd_q),
         )
         self._process.start()
 
         # Give process time to start - increased for slower environments like pytest
         await asyncio.sleep(0.3)
 
-    async def send_message(self, to_node_id: str, message_type: str, payload: Any) -> None:
+    async def send_message(
+        self, to_node_id: str, message_type: str, payload: Any
+    ) -> None:
         """Send a message to another node (across processes)."""
         import cloudpickle
 
@@ -209,18 +220,15 @@ class ProcessContext(NodeContext):
             raise ValueError(f"Target node {to_node_id} not found or not running.")
 
         # Serialize and send message to target's inbox
-        msg = {
-            "from": self._node_id,
-            "type": message_type,
-            "payload": payload
-        }
+        msg = {"from": self._node_id, "type": message_type, "payload": payload}
         serialized_msg = cloudpickle.dumps(msg)
         target_context._inbox_q.put(serialized_msg)
 
     async def receive_messages(self) -> AsyncIterator[Any]:
         """Receive messages from the process (non-blocking async)."""
-        import cloudpickle
         import queue
+
+        import cloudpickle
 
         if not self._running:
             raise RuntimeError("ProcessContext is not started.")
@@ -290,7 +298,7 @@ class ProcessContext(NodeContext):
         if self._cmd_q:
             try:
                 self._cmd_q.put(("stop", None), timeout=1.0)
-            except:
+            except Exception:
                 pass
 
         # Wait for process to terminate
@@ -322,9 +330,10 @@ def _process_node_main(config_blob: bytes, inbox_q, outbox_q, cmd_q) -> None:
     Messages are received via inbox_q, processed by the node, and results
     sent back via outbox_q.
     """
-    import cloudpickle
-    import queue
     import asyncio
+    import queue
+
+    import cloudpickle
 
     # Deserialize node configuration
     config = cloudpickle.loads(config_blob)
@@ -340,8 +349,9 @@ def _process_node_main(config_blob: bytes, inbox_q, outbox_q, cmd_q) -> None:
     if node_objects:
         try:
             from byzpy.engine.peer_to_peer.runner import _NODE_OBJECT_REGISTRY
+
             _NODE_OBJECT_REGISTRY.update(node_objects)
-        except:
+        except Exception:
             pass  # Registry might not be available, continue without it
 
     # Create new event loop for this process
@@ -380,10 +390,14 @@ def _process_node_main(config_blob: bytes, inbox_q, outbox_q, cmd_q) -> None:
                 await init_callback(node)
             except Exception as e:
                 # Send error to parent process
-                outbox_q.put(cloudpickle.dumps({
-                    "type": "init_error",
-                    "error": str(e),
-                }))
+                outbox_q.put(
+                    cloudpickle.dumps(
+                        {
+                            "type": "init_error",
+                            "error": str(e),
+                        }
+                    )
+                )
                 # Continue even if initialization fails (node still processes messages)
 
         # Message processing loop
@@ -404,17 +418,25 @@ def _process_node_main(config_blob: bytes, inbox_q, outbox_q, cmd_q) -> None:
                             payload["pipeline_name"],
                             payload["inputs"],
                         )
-                        outbox_q.put(cloudpickle.dumps({
-                            "type": "pipeline_result",
-                            "request_id": payload.get("request_id"),
-                            "result": result,
-                        }))
+                        outbox_q.put(
+                            cloudpickle.dumps(
+                                {
+                                    "type": "pipeline_result",
+                                    "request_id": payload.get("request_id"),
+                                    "result": result,
+                                }
+                            )
+                        )
                     except Exception as e:
-                        outbox_q.put(cloudpickle.dumps({
-                            "type": "pipeline_error",
-                            "request_id": payload.get("request_id"),
-                            "error": str(e),
-                        }))
+                        outbox_q.put(
+                            cloudpickle.dumps(
+                                {
+                                    "type": "pipeline_error",
+                                    "request_id": payload.get("request_id"),
+                                    "error": str(e),
+                                }
+                            )
+                        )
                 processed_any = True
             except queue.Empty:
                 pass
@@ -434,12 +456,16 @@ def _process_node_main(config_blob: bytes, inbox_q, outbox_q, cmd_q) -> None:
 
                     # Also forward to parent for parent-side handlers
                     # (handlers registered on parent DecentralizedNode)
-                    outbox_q.put(cloudpickle.dumps({
-                        "type": "_message_received",
-                        "from": msg.get("from", "unknown"),
-                        "message_type": msg.get("type", "unknown"),
-                        "payload": msg.get("payload"),
-                    }))
+                    outbox_q.put(
+                        cloudpickle.dumps(
+                            {
+                                "type": "_message_received",
+                                "from": msg.get("from", "unknown"),
+                                "message_type": msg.get("type", "unknown"),
+                                "payload": msg.get("payload"),
+                            }
+                        )
+                    )
                     processed_any = True
                 except queue.Empty:
                     break
@@ -458,10 +484,14 @@ def _process_node_main(config_blob: bytes, inbox_q, outbox_q, cmd_q) -> None:
         loop.run_until_complete(run_node())
     except Exception as e:
         # Send error to parent
-        outbox_q.put(cloudpickle.dumps({
-            "type": "process_error",
-            "error": str(e),
-        }))
+        outbox_q.put(
+            cloudpickle.dumps(
+                {
+                    "type": "process_error",
+                    "error": str(e),
+                }
+            )
+        )
     finally:
         loop.close()
 
@@ -491,7 +521,9 @@ class _SubprocessBridgeContext(NodeContext):
         self._running = True
         _SubprocessBridgeContext._subprocess_registry[self._node_id] = self
 
-    async def send_message(self, to_node_id: str, message_type: str, payload: Any) -> None:
+    async def send_message(
+        self, to_node_id: str, message_type: str, payload: Any
+    ) -> None:
         """Send message via parent process routing."""
         import cloudpickle
 
@@ -519,6 +551,7 @@ class _SubprocessBridgeContext(NodeContext):
             try:
                 # Non-blocking check
                 import cloudpickle
+
                 serialized_msg = self._inbox_q.get_nowait()
                 msg = cloudpickle.loads(serialized_msg)
                 yield msg
@@ -577,7 +610,9 @@ class RemoteContext(NodeContext):
         try:
             await self._client.connect(timeout=5.0)
         except (ConnectionError, OSError, asyncio.TimeoutError) as e:
-            raise ConnectionError(f"Failed to connect to {self.host}:{self.port}") from e
+            raise ConnectionError(
+                f"Failed to connect to {self.host}:{self.port}"
+            ) from e
 
         self._running = True
 
@@ -587,7 +622,9 @@ class RemoteContext(NodeContext):
 
         self._receive_task = asyncio.create_task(self._message_processing_loop())
 
-    async def send_message(self, to_node_id: str, message_type: str, payload: Any) -> None:
+    async def send_message(
+        self, to_node_id: str, message_type: str, payload: Any
+    ) -> None:
         """
         Send a message to a node on the remote server.
 
@@ -607,10 +644,7 @@ class RemoteContext(NodeContext):
         # Actually, let's update the client call to include from
         if self._node:
             await self._client.send_message(
-                to_node_id,
-                message_type,
-                payload,
-                from_node_id=self._node.node_id
+                to_node_id, message_type, payload, from_node_id=self._node.node_id
             )
         else:
             await self._client.send_message(to_node_id, message_type, payload)
@@ -628,8 +662,7 @@ class RemoteContext(NodeContext):
         while self._running:
             try:
                 msg = await asyncio.wait_for(
-                    self._client.receive_message(timeout=0.1),
-                    timeout=0.1
+                    self._client.receive_message(timeout=0.1), timeout=0.1
                 )
                 if msg:
                     # Convert server message format to expected format
@@ -687,4 +720,3 @@ class RemoteContext(NodeContext):
 
 
 __all__ = ["NodeContext", "InProcessContext", "ProcessContext", "RemoteContext"]
-

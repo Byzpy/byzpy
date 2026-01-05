@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
-import pytest
 
-from byzpy.engine.node.context import NodeContext, InProcessContext
+import pytest
+from byzpy.engine.node.context import InProcessContext, NodeContext
 
 
 class MockDecentralizedNode:
     """Mock node for testing contexts."""
+
     def __init__(self, node_id: str = "test-node"):
         self.node_id = node_id
         self._inbox = asyncio.Queue()
@@ -15,6 +16,7 @@ class MockDecentralizedNode:
 
 
 # Category 1: NodeContext Interface Tests
+
 
 @pytest.mark.asyncio
 async def test_nodecontext_is_abstract_base_class():
@@ -25,7 +27,7 @@ async def test_nodecontext_is_abstract_base_class():
 
 def test_nodecontext_requires_interface_methods():
     """Verify all required methods are defined in interface."""
-    required_methods = ['start', 'send_message', 'receive_messages', 'shutdown']
+    required_methods = ["start", "send_message", "receive_messages", "shutdown"]
     for method in required_methods:
         assert hasattr(NodeContext, method)
         # Verify it's abstract by checking if it raises NotImplementedError
@@ -35,6 +37,7 @@ def test_nodecontext_requires_interface_methods():
 
 
 # Category 2: InProcessContext Implementation Tests
+
 
 def test_inprocesscontext_can_be_instantiated():
     """Verify InProcessContext can be created."""
@@ -123,10 +126,7 @@ async def test_inprocesscontext_handles_concurrent_messages():
     await ctx2.start(node2)
 
     # Send multiple messages concurrently from ctx1 to ctx2
-    tasks = [
-        ctx1.send_message("node2", f"msg{i}", i)
-        for i in range(10)
-    ]
+    tasks = [ctx1.send_message("node2", f"msg{i}", i) for i in range(10)]
     await asyncio.gather(*tasks)
 
     # All messages should be received
@@ -146,4 +146,3 @@ async def test_inprocesscontext_send_message_raises_when_not_started():
 
     with pytest.raises(RuntimeError, match="not started"):
         await ctx.send_message("target", "test", "data")
-

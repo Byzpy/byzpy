@@ -3,24 +3,25 @@ Integration tests for process-based decentralized nodes.
 
 Tests end-to-end P2P training with nodes running in separate OS processes.
 """
+
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 import torch
-
-from byzpy.engine.node.cluster import DecentralizedCluster
-from byzpy.engine.node.context import ProcessContext, InProcessContext
-from byzpy.engine.node.decentralized import DecentralizedNode
-from byzpy.engine.node.application import NodeApplication
-from byzpy.engine.graph.pool import ActorPoolConfig
 from byzpy.engine.graph.graph import ComputationGraph, GraphNode, graph_input
 from byzpy.engine.graph.operator import Operator
-
+from byzpy.engine.graph.pool import ActorPoolConfig
+from byzpy.engine.node.application import NodeApplication
+from byzpy.engine.node.cluster import DecentralizedCluster
+from byzpy.engine.node.context import InProcessContext, ProcessContext
+from byzpy.engine.node.decentralized import DecentralizedNode
 
 # =============================================================================
 # Test Utilities
 # =============================================================================
+
 
 def create_test_application(name: str = "test-app") -> NodeApplication:
     """Create a test NodeApplication with thread pool."""
@@ -32,22 +33,27 @@ def create_test_application(name: str = "test-app") -> NodeApplication:
 
 class DoubleOp(Operator):
     """Simple operator that doubles input."""
+
     def compute(self, inputs, *, context):
         return inputs["x"] * 2
 
 
 class MeanAggregatorOp(Operator):
     """Aggregates gradients by computing mean."""
+
     def compute(self, inputs, *, context):
         gradients = inputs["gradients"]
         if not gradients:
             return torch.zeros(1)
-        stacked = torch.stack([g if isinstance(g, torch.Tensor) else torch.tensor(g) for g in gradients])
+        stacked = torch.stack(
+            [g if isinstance(g, torch.Tensor) else torch.tensor(g) for g in gradients]
+        )
         return stacked.mean(dim=0)
 
 
 class SGDStepOp(Operator):
     """Simulates an SGD step: params = params - lr * gradient."""
+
     def compute(self, inputs, *, context):
         params = inputs["params"]
         gradient = inputs["gradient"]
@@ -57,6 +63,7 @@ class SGDStepOp(Operator):
 
 class LocalGradientOp(Operator):
     """Computes a local gradient (simulated)."""
+
     def compute(self, inputs, *, context):
         # Simulate gradient computation: gradient = params + noise
         params = inputs["params"]
@@ -68,6 +75,7 @@ class LocalGradientOp(Operator):
 # =============================================================================
 # Category 8: Multi-Process P2P Training Integration
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_multi_process_p2p_gradient_exchange():
@@ -93,7 +101,9 @@ async def test_multi_process_p2p_gradient_exchange():
     for node_id, node in cluster.nodes.items():
         assert node._running, f"Node {node_id} should be running"
         assert isinstance(node.context, ProcessContext)
-        assert node.context._process.is_alive(), f"Process for {node_id} should be alive"
+        assert (
+            node.context._process.is_alive()
+        ), f"Process for {node_id} should be alive"
 
     # Each node sends its "local gradient" to next node in ring
     for i, (node_id, node) in enumerate(cluster.nodes.items()):
@@ -110,7 +120,9 @@ async def test_multi_process_p2p_gradient_exchange():
     # Verify nodes are still running after message exchange
     for node_id, node in cluster.nodes.items():
         assert node._running, f"Node {node_id} should still be running"
-        assert node.context._process.is_alive(), f"Process for {node_id} should still be alive"
+        assert (
+            node.context._process.is_alive()
+        ), f"Process for {node_id} should still be alive"
 
     await cluster.shutdown_all()
 
@@ -151,9 +163,11 @@ async def test_multi_process_p2p_training_round():
 
     # Register gradient handlers
     for node_id, node in cluster.nodes.items():
+
         async def on_gradient(from_id, payload, nid=node_id):
             grad_tensor = torch.tensor(payload["gradient"])
             node_states[nid]["received_gradients"].append(grad_tensor)
+
         node.register_message_handler("gradient", on_gradient)
 
     # Phase 1: Each node computes local gradient (simulated)
@@ -195,13 +209,17 @@ async def test_multi_process_p2p_training_round():
 
     # Verify all nodes updated their parameters
     for node_id, state in node_states.items():
-        assert state["updated_params"] is not None, f"{node_id} should have updated params"
-        assert not torch.equal(state["updated_params"], initial_params), \
-            f"{node_id} params should have changed"
+        assert (
+            state["updated_params"] is not None
+        ), f"{node_id} should have updated params"
+        assert not torch.equal(
+            state["updated_params"], initial_params
+        ), f"{node_id} params should have changed"
 
         # Each node should have received 2 gradients (from 2 other nodes)
-        assert len(state["received_gradients"]) == 2, \
-            f"{node_id} should have received 2 gradients, got {len(state['received_gradients'])}"
+        assert (
+            len(state["received_gradients"]) == 2
+        ), f"{node_id} should have received 2 gradients, got {len(state['received_gradients'])}"
 
     await cluster.shutdown_all()
 
@@ -314,13 +332,18 @@ async def test_multi_process_aggregation_pipeline():
     await asyncio.sleep(0.5)
 
     # Aggregator aggregates
-    assert len(collected_grads) == 2, f"Should have 2 gradients, got {len(collected_grads)}"
+    assert (
+        len(collected_grads) == 2
+    ), f"Should have 2 gradients, got {len(collected_grads)}"
 
-    result = await aggregator.execute_pipeline("aggregate", {"gradients": collected_grads})
+    result = await aggregator.execute_pipeline(
+        "aggregate", {"gradients": collected_grads}
+    )
 
     expected = (grad1 + grad2) / 2
-    assert torch.allclose(result["aggregate"], expected), \
-        f"Expected {expected}, got {result['aggregate']}"
+    assert torch.allclose(
+        result["aggregate"], expected
+    ), f"Expected {expected}, got {result['aggregate']}"
 
     await cluster.shutdown_all()
 
@@ -395,9 +418,11 @@ async def test_process_based_training_with_model_update():
 
     # Setup gradient handlers
     for node_id, node in cluster.nodes.items():
+
         async def handler(from_id, payload, nid=node_id):
             grad = torch.tensor(payload["gradient"])
             states[nid]["gradients_received"].append(grad)
+
         node.register_message_handler("gradient", handler)
 
     # Simulate 2 training rounds
@@ -433,8 +458,9 @@ async def test_process_based_training_with_model_update():
 
     # Verify all nodes have updated parameters
     for node_id, state in states.items():
-        assert not torch.equal(state["params"], initial_params), \
-            f"{node_id} should have updated parameters"
+        assert not torch.equal(
+            state["params"], initial_params
+        ), f"{node_id} should have updated parameters"
 
     # All nodes should have similar parameters (consensus behavior)
     params_list = [s["params"] for s in states.values()]
@@ -448,6 +474,7 @@ async def test_process_based_training_with_model_update():
 # =============================================================================
 # Category 4: Cross-Process Message Routing
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_cross_process_tensor_message():
@@ -476,7 +503,9 @@ async def test_cross_process_tensor_message():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Flaky test - cross-process message delivery issue, missing message 5 (gets 9 instead of 10)")
+@pytest.mark.skip(
+    reason="Flaky test - cross-process message delivery issue, missing message 5 (gets 9 instead of 10)"
+)
 async def test_cross_process_multiple_messages():
     """Verify multiple messages are delivered correctly."""
     cluster = DecentralizedCluster()
@@ -515,6 +544,7 @@ async def test_cross_process_multiple_messages():
 # =============================================================================
 # Category 2: ProcessContext Integration with DecentralizedNode
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_decentralizednode_with_processcontext_pipeline():
@@ -587,4 +617,3 @@ async def test_decentralizednode_processcontext_send_message():
     # Processes should be terminated
     assert not ctx1._running
     assert not ctx2._running
-

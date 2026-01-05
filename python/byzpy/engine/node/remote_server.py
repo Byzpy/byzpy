@@ -1,11 +1,12 @@
 """Remote node server for hosting DecentralizedNode instances."""
+
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from .remote_client import serialize_message, deserialize_message
-from .context import NodeContext, InProcessContext
+from .context import InProcessContext, NodeContext
+from .remote_client import deserialize_message, serialize_message
 
 if TYPE_CHECKING:
     from .decentralized import DecentralizedNode
@@ -18,7 +19,9 @@ class ServerNodeContext(NodeContext):
     Routes messages to local nodes via InProcessContext, and to remote clients via the server.
     """
 
-    def __init__(self, server: "RemoteNodeServer", in_process_context: InProcessContext):
+    def __init__(
+        self, server: "RemoteNodeServer", in_process_context: InProcessContext
+    ):
         """
         Initialize server node context.
 
@@ -35,7 +38,9 @@ class ServerNodeContext(NodeContext):
         self._node = node
         await self._in_process.start(node)
 
-    async def send_message(self, to_node_id: str, message_type: str, payload: Any) -> None:
+    async def send_message(
+        self, to_node_id: str, message_type: str, payload: Any
+    ) -> None:
         """
         Send message to target node.
 
@@ -50,13 +55,12 @@ class ServerNodeContext(NodeContext):
             client_writer = self._server._client_connections[to_node_id]
             from_node_id = self._node.node_id if self._node else "unknown"
             await self._server.send_message_to_client(
-                client_writer,
-                from_node_id,
-                message_type,
-                payload
+                client_writer, from_node_id, message_type, payload
             )
         else:
-            raise ValueError(f"Node {to_node_id} not found (not local and not registered remote)")
+            raise ValueError(
+                f"Node {to_node_id} not found (not local and not registered remote)"
+            )
 
     async def receive_messages(self):
         """Receive messages - delegate to in-process context."""
@@ -89,7 +93,9 @@ class RemoteNodeServer:
         self._nodes: Dict[str, "DecentralizedNode"] = {}
         self._server: Optional[asyncio.Server] = None
         self._running = False
-        self._client_connections: Dict[str, asyncio.StreamWriter] = {}  # node_id -> writer
+        self._client_connections: Dict[str, asyncio.StreamWriter] = (
+            {}
+        )  # node_id -> writer
         self._client_writers: Dict[asyncio.StreamWriter, str] = {}  # writer -> node_id
 
     async def register_node(self, node: "DecentralizedNode") -> None:
@@ -103,7 +109,9 @@ class RemoteNodeServer:
             ValueError: If node ID already registered
         """
         if node.node_id in self._nodes:
-            raise ValueError(f"Node {node.node_id} is already registered on this server")
+            raise ValueError(
+                f"Node {node.node_id} is already registered on this server"
+            )
 
         # Replace node's context with ServerNodeContext for routing
         in_process_context = InProcessContext()
@@ -119,9 +127,7 @@ class RemoteNodeServer:
             return
 
         self._server = await asyncio.start_server(
-            self._handle_client,
-            self.host,
-            self.port
+            self._handle_client, self.host, self.port
         )
         self._running = True
 
@@ -129,9 +135,7 @@ class RemoteNodeServer:
             await self._server.serve_forever()
 
     async def _handle_client(
-        self,
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
         """
         Handle incoming client connection.
@@ -140,7 +144,7 @@ class RemoteNodeServer:
             reader: Stream reader for receiving data
             writer: Stream writer for sending data
         """
-        client_addr = writer.get_extra_info('peername')
+        client_addr = writer.get_extra_info("peername")
         client_id = f"{client_addr[0]}:{client_addr[1]}"
         remote_node_id: Optional[str] = None
 
@@ -149,15 +153,13 @@ class RemoteNodeServer:
                 try:
                     # Read length prefix
                     length_bytes = await asyncio.wait_for(
-                        reader.readexactly(4),
-                        timeout=1.0
+                        reader.readexactly(4), timeout=1.0
                     )
-                    length = int.from_bytes(length_bytes, byteorder='big')
+                    length = int.from_bytes(length_bytes, byteorder="big")
 
                     # Read message
                     data = await asyncio.wait_for(
-                        reader.readexactly(length),
-                        timeout=5.0
+                        reader.readexactly(length), timeout=5.0
                     )
 
                     msg = deserialize_message(data)
@@ -196,7 +198,7 @@ class RemoteNodeServer:
                             "payload": {"error": f"Node {to_node_id} not found"},
                         }
                         serialized = serialize_message(error_msg)
-                        length = len(serialized).to_bytes(4, byteorder='big')
+                        length = len(serialized).to_bytes(4, byteorder="big")
                         writer.write(length + serialized)
                         await writer.drain()
 
@@ -242,7 +244,7 @@ class RemoteNodeServer:
         client_writer: asyncio.StreamWriter,
         from_node_id: str,
         message_type: str,
-        payload: Any
+        payload: Any,
     ) -> None:
         """
         Send a message to a connected client.
@@ -261,7 +263,7 @@ class RemoteNodeServer:
 
         try:
             serialized = serialize_message(msg)
-            length = len(serialized).to_bytes(4, byteorder='big')
+            length = len(serialized).to_bytes(4, byteorder="big")
             client_writer.write(length + serialized)
             await client_writer.drain()
         except Exception:
@@ -286,4 +288,3 @@ class RemoteNodeServer:
 
 
 __all__ = ["RemoteNodeServer"]
-

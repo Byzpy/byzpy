@@ -60,7 +60,14 @@ class HeavyPythonOp(Operator):
         subtasks = []
         for idx in range(0, len(payload), self.chunk_size):
             part = payload[idx : idx + self.chunk_size]
-            subtasks.append(SubTask(fn=_run_chunk, args=(part, self.inner_iters), kwargs={}, name=f"chunk-{idx}"))
+            subtasks.append(
+                SubTask(
+                    fn=_run_chunk,
+                    args=(part, self.inner_iters),
+                    kwargs={},
+                    name=f"chunk-{idx}",
+                )
+            )
         return subtasks
 
     def reduce_subtasks(self, partials: Sequence[float], inputs, *, context: OpContext) -> float:  # type: ignore[override]
@@ -74,21 +81,42 @@ def _run_chunk(values: Sequence[float], inner_iters: int) -> float:
         acc = 0.0
         for i in range(1, inner_iters + 1):
             angle = x / (i + 0.5)
-            acc += math.sin(angle) * math.cos(angle + x) + math.sqrt(1.0 + angle * angle)
+            acc += math.sin(angle) * math.cos(angle + x) + math.sqrt(
+                1.0 + angle * angle
+            )
         total += acc
     return total
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Benchmark a pure-Python workload with ActorPool vs single-thread.")
+    parser = argparse.ArgumentParser(
+        description="Benchmark a pure-Python workload with ActorPool vs single-thread."
+    )
     parser.add_argument("--tasks", type=int, default=5000, help="Number of work items.")
-    parser.add_argument("--inner-iters", type=int, default=2000, help="Loop iterations per work item.")
-    parser.add_argument("--chunk-size", type=int, default=250, help="Tasks per subtask.")
-    parser.add_argument("--pool-backend", type=str, default="process", help="Actor backend to use.")
-    parser.add_argument("--pool-workers", type=int, default=8, help="Number of workers in the ActorPool.")
-    parser.add_argument("--warmup", type=int, default=1, help="Warm-up iterations per mode.")
-    parser.add_argument("--repeat", type=int, default=3, help="Timed iterations per mode.")
-    parser.add_argument("--seed", type=int, default=0, help="Random seed for task generation.")
+    parser.add_argument(
+        "--inner-iters", type=int, default=2000, help="Loop iterations per work item."
+    )
+    parser.add_argument(
+        "--chunk-size", type=int, default=250, help="Tasks per subtask."
+    )
+    parser.add_argument(
+        "--pool-backend", type=str, default="process", help="Actor backend to use."
+    )
+    parser.add_argument(
+        "--pool-workers",
+        type=int,
+        default=8,
+        help="Number of workers in the ActorPool.",
+    )
+    parser.add_argument(
+        "--warmup", type=int, default=1, help="Warm-up iterations per mode."
+    )
+    parser.add_argument(
+        "--repeat", type=int, default=3, help="Timed iterations per mode."
+    )
+    parser.add_argument(
+        "--seed", type=int, default=0, help="Random seed for task generation."
+    )
     return parser.parse_args()
 
 
@@ -139,7 +167,9 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
         warmup=args.warmup,
     )
 
-    pool = ActorPool([ActorPoolConfig(backend=args.pool_backend, count=args.pool_workers)])
+    pool = ActorPool(
+        [ActorPoolConfig(backend=args.pool_backend, count=args.pool_workers)]
+    )
     await pool.start()
     try:
         scheduler_pool = NodeScheduler(graph, pool=pool)
@@ -154,7 +184,9 @@ async def _benchmark(args: argparse.Namespace) -> list[BenchmarkRun]:
 
     return [
         BenchmarkRun("Single-thread (Python loops)", direct_time),
-        BenchmarkRun(f"ActorPool x{args.pool_workers} ({args.pool_backend})", pool_time),
+        BenchmarkRun(
+            f"ActorPool x{args.pool_workers} ({args.pool_backend})", pool_time
+        ),
     ]
 
 

@@ -1,5 +1,4 @@
 import torch
-
 from byzpy.attacks.sign_flip import SignFlipAttack
 from byzpy.engine.graph.operator import OpContext
 

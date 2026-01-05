@@ -1,13 +1,14 @@
 """Tests for RemoteNodeServer - Category 2 from Milestone 5 Test Plan."""
-import asyncio
-import pytest
-import socket
-from byzpy.engine.node.remote_server import RemoteNodeServer
-from byzpy.engine.node.application import NodeApplication
-from byzpy.engine.graph.pool import ActorPoolConfig
-from byzpy.engine.node.decentralized import DecentralizedNode
-from byzpy.engine.node.context import InProcessContext, RemoteContext
 
+import asyncio
+import socket
+
+import pytest
+from byzpy.engine.graph.pool import ActorPoolConfig
+from byzpy.engine.node.application import NodeApplication
+from byzpy.engine.node.context import InProcessContext, RemoteContext
+from byzpy.engine.node.decentralized import DecentralizedNode
+from byzpy.engine.node.remote_server import RemoteNodeServer
 
 # Port management
 _port_counter = 9000
@@ -27,12 +28,14 @@ def make_app():
             name=name,
             actor_pool=[ActorPoolConfig(backend="thread", count=1)],
         )
+
     return _make_app
 
 
 # =============================================================================
 # Category 2.1: RemoteNodeServer Creation and Configuration
 # =============================================================================
+
 
 def test_remotenodeserver_can_be_created():
     """Verify RemoteNodeServer can be instantiated."""
@@ -56,6 +59,7 @@ def test_remotenodeserver_with_custom_host_port():
 # =============================================================================
 # Category 2.2: RemoteNodeServer Node Registration
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_remotenodeserver_register_node(make_app):
@@ -114,6 +118,7 @@ async def test_remotenodeserver_register_duplicate_node_raises(make_app):
 # Category 2.3: RemoteNodeServer Serving
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_remotenodeserver_start_stop():
     """Verify RemoteNodeServer can start and stop serving."""
@@ -167,6 +172,7 @@ async def test_remotenodeserver_accepts_connections():
 # Category 2.4: RemoteNodeServer Message Routing
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_remotenodeserver_routes_messages_to_node(make_app):
     """Verify RemoteNodeServer routes incoming messages to correct node."""
@@ -183,6 +189,7 @@ async def test_remotenodeserver_routes_messages_to_node(make_app):
 
     async def handler(from_id, payload):
         received_messages.append((from_id, payload))
+
     server_node.register_message_handler("test", handler)
     await server.register_node(server_node)
 
@@ -250,5 +257,3 @@ async def test_remotenodeserver_routes_to_nonexistent_node_raises(make_app):
         await serve_task
     except asyncio.CancelledError:
         pass
-
-

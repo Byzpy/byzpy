@@ -6,8 +6,6 @@ from typing import Any, Iterable, Sequence, Tuple
 
 import numpy as np
 
-from ..base import Aggregator
-from .._chunking import select_adaptive_chunk_size
 from ...configs.backend import get_backend
 from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
@@ -16,6 +14,8 @@ from ...engine.storage.shared_store import (
     open_tensor,
     register_tensor,
 )
+from .._chunking import select_adaptive_chunk_size
+from ..base import Aggregator
 
 try:  # optional torch import for dtype/device mirroring
     import torch
@@ -68,7 +68,9 @@ def _centered_max_eigval(gram_subset: np.ndarray) -> float:
     m = gram_subset.shape[0]
     if m <= 1:
         return 0.0
-    H = np.eye(m, dtype=gram_subset.dtype) - np.full((m, m), 1.0 / m, dtype=gram_subset.dtype)
+    H = np.eye(m, dtype=gram_subset.dtype) - np.full(
+        (m, m), 1.0 / m, dtype=gram_subset.dtype
+    )
     centered = H @ gram_subset @ H
     vals = np.linalg.eigvalsh(centered)
     return float(max(vals[-1].real, 0.0) / m)
@@ -172,7 +174,9 @@ class SMEA(Aggregator):
         total_combos = math.comb(n, m)
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
-        chunk = select_adaptive_chunk_size(total_combos, self.chunk_size, pool_size=pool_size)
+        chunk = select_adaptive_chunk_size(
+            total_combos, self.chunk_size, pool_size=pool_size
+        )
 
         def _iter_subtasks() -> Iterable[SubTask]:
             chunk_id = 0

@@ -1,5 +1,4 @@
 import torch
-
 from byzpy.attacks.little import LittleAttack
 from byzpy.engine.graph.operator import OpContext
 from byzpy.engine.storage.shared_store import cleanup_tensor

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import torch
-
 from byzpy.aggregators.geometric_wise.monna import MoNNA
 from byzpy.engine.graph.operator import OpContext
 
@@ -34,7 +33,7 @@ def test_monna_subtasks() -> None:
     subtasks = list(
         agg.create_subtasks(
             {"gradients": grads},
-            context=type("ctx", (), {"metadata": {"pool_size": 2}})
+            context=type("ctx", (), {"metadata": {"pool_size": 2}}),
         )
     )
     assert subtasks, "MoNNA should generate subtasks for chunking"

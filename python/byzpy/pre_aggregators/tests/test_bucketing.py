@@ -1,8 +1,7 @@
 import torch
-
-from byzpy.pre_aggregators import Bucketing
 from byzpy.engine.graph.operator import OpContext
 from byzpy.engine.storage.shared_store import cleanup_tensor
+from byzpy.pre_aggregators import Bucketing
 
 
 def test_bucketing_fixed_perm():
@@ -27,12 +26,20 @@ def test_bucketing_chunk_matches_direct():
 
     agg_chunk = Bucketing(bucket_size=8, feature_chunk_size=512, perm=perm)
     inputs = {"vectors": xs}
-    subtasks = list(agg_chunk.create_subtasks(inputs, context=OpContext(node_name="bkt", metadata={"pool_size": 4})))
+    subtasks = list(
+        agg_chunk.create_subtasks(
+            inputs, context=OpContext(node_name="bkt", metadata={"pool_size": 4})
+        )
+    )
     partials = [task.fn(*task.args, **task.kwargs) for task in subtasks]
-    reduced = agg_chunk.reduce_subtasks(partials, inputs, context=OpContext(node_name="bkt", metadata={}))
+    reduced = agg_chunk.reduce_subtasks(
+        partials, inputs, context=OpContext(node_name="bkt", metadata={})
+    )
 
     def _stack(vals):
-        return torch.stack([v if isinstance(v, torch.Tensor) else torch.as_tensor(v) for v in vals])
+        return torch.stack(
+            [v if isinstance(v, torch.Tensor) else torch.as_tensor(v) for v in vals]
+        )
 
     assert torch.allclose(_stack(direct), _stack(reduced), atol=1e-6)
 

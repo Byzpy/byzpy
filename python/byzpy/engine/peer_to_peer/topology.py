@@ -1,17 +1,21 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Dict, List, Iterable, Tuple
+from typing import Dict, Iterable, List, Tuple
+
 
 @dataclass(frozen=True)
 class Edge:
     u: int
     v: int  # directed u -> v
 
+
 class Topology:
     """
     Directed communication graph  V={0..N-1}.
     Store both Γ_out(i) and Γ_in(i).
     """
+
     def __init__(self, n_nodes: int, edges: Iterable[Tuple[int, int]]):
         self.n = int(n_nodes)
         self.out: Dict[int, List[int]] = {i: [] for i in range(self.n)}

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import asyncio
 import traceback
 import uuid
@@ -9,13 +10,15 @@ import cloudpickle
 from ..base import ActorBackend
 from ..channels import Endpoint
 from ..router import channel_router
-from ..transports import ucx, tcp
+from ..transports import tcp, ucx
 
 
 def _resolve_backend(scheme: str, actor_id: str):
     return channel_router.resolve(scheme, actor_id)
 
+
 # ----------------------------- GPU local backend --------------------------------
+
 
 class GPUActorBackend(ActorBackend):
     """
@@ -26,6 +29,7 @@ class GPUActorBackend(ActorBackend):
       - to 'tcp': use your TCP server protocol
       - to 'ucx': UCX fast path (GPU→GPU) using UCX-Py
     """
+
     def __init__(self) -> None:
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._obj = None
@@ -37,9 +41,15 @@ class GPUActorBackend(ActorBackend):
         if self._loop is None:
             self._loop = asyncio.get_running_loop()
 
-    async def construct(self, cls_or_factory: Any, *, args: tuple, kwargs: dict) -> None:
+    async def construct(
+        self, cls_or_factory: Any, *, args: tuple, kwargs: dict
+    ) -> None:
         target = cls_or_factory
-        self._obj = target(*args, **kwargs) if not isinstance(target, type) else target(*args, **kwargs)
+        self._obj = (
+            target(*args, **kwargs)
+            if not isinstance(target, type)
+            else target(*args, **kwargs)
+        )
 
     async def call(self, method: str, *args, **kwargs):
         fn = getattr(self._obj, method)
@@ -64,7 +74,9 @@ class GPUActorBackend(ActorBackend):
         q = self._queues.setdefault(name, asyncio.Queue())
         await q.put((from_ep, payload))
 
-    async def chan_put(self, *, from_ep: Endpoint, to_ep: Endpoint, name: str, payload: Any) -> None:
+    async def chan_put(
+        self, *, from_ep: Endpoint, to_ep: Endpoint, name: str, payload: Any
+    ) -> None:
         # 1) target == local gpu actor
         if to_ep.scheme == "gpu":
             if to_ep.actor_id == self._actor_id:
@@ -81,29 +93,38 @@ class GPUActorBackend(ActorBackend):
             peer = _resolve_backend("thread", to_ep.actor_id)
             if peer is None:
                 raise RuntimeError(f"no local thread actor {to_ep.actor_id}")
-            await peer.chan_put(from_ep=from_ep, to_ep=to_ep, name=name, payload=payload)
+            await peer.chan_put(
+                from_ep=from_ep, to_ep=to_ep, name=name, payload=payload
+            )
             return
 
         if to_ep.scheme == "process":
             peer = _resolve_backend("process", to_ep.actor_id)
             if peer is None:
                 raise RuntimeError(f"no local process actor {to_ep.actor_id}")
-            await peer.chan_put(from_ep=from_ep, to_ep=to_ep, name=name, payload=payload)
+            await peer.chan_put(
+                from_ep=from_ep, to_ep=to_ep, name=name, payload=payload
+            )
             return
 
         # 3) UCX fast path (GPU→GPU) to remote UCX server
         if to_ep.scheme == "ucx":
             if not ucx.have_ucx():
-                raise RuntimeError("UCX requested but UCX is not available (need ucxx or ucp)")
+                raise RuntimeError(
+                    "UCX requested but UCX is not available (need ucxx or ucp)"
+                )
             host, port = to_ep.address.rsplit(":", 1)
 
             async def _op(e):
-                await ucx.send_control(e, {
-                    "op": "chan_put",
-                    "from": from_ep.__dict__,
-                    "to": to_ep.__dict__,
-                    "name": name,
-                })
+                await ucx.send_control(
+                    e,
+                    {
+                        "op": "chan_put",
+                        "from": from_ep.__dict__,
+                        "to": to_ep.__dict__,
+                        "name": name,
+                    },
+                )
                 tag, desc = ucx.pack_payload(payload)
                 await ucx.send_payload(e, tag, desc, payload)
                 rep = await ucx.recv_control(e)
@@ -155,11 +176,21 @@ class GPUActorBackend(ActorBackend):
         # 3) read from a UCX server mailbox
         if ep.scheme == "ucx":
             if not ucx.have_ucx():
-                raise RuntimeError("UCX requested but UCX is not available (need ucxx or ucp)")
+                raise RuntimeError(
+                    "UCX requested but UCX is not available (need ucxx or ucp)"
+                )
             host, port = ep.address.rsplit(":", 1)
 
             async def _op(e):
-                await ucx.send_control(e, {"op": "chan_get", "name": name, "timeout": timeout, "actor_id": ep.actor_id})
+                await ucx.send_control(
+                    e,
+                    {
+                        "op": "chan_get",
+                        "name": name,
+                        "timeout": timeout,
+                        "actor_id": ep.actor_id,
+                    },
+                )
                 rep = await ucx.recv_control(e)
                 if not rep.get("ok", False):
                     raise RuntimeError(rep)
@@ -180,7 +211,9 @@ class GPUActorBackend(ActorBackend):
 
         raise RuntimeError("Endpoint mismatch")
 
+
 # ----------------------------- UCX remote (optional) ----------------------------
+
 
 class UCXRemoteActorBackend(ActorBackend):
     """
@@ -189,6 +222,7 @@ class UCXRemoteActorBackend(ActorBackend):
       ref = ActorRef(backend)  # normal construct/call
     Also provides UCX-aware chan_put/chan_get for GPU GPU transfers.
     """
+
     def __init__(self, host: str, port: int):
         self._host, self._port = host, int(port)
         self._ep = None
@@ -210,7 +244,9 @@ class UCXRemoteActorBackend(ActorBackend):
                 return
             try:
                 if self._actor_id is not None:
-                    await ucx.send_control(self._ep, {"op": "close", "actor_id": self._actor_id})
+                    await ucx.send_control(
+                        self._ep, {"op": "close", "actor_id": self._actor_id}
+                    )
                     await ucx.recv_control(self._ep)
             except Exception:
                 pass
@@ -223,11 +259,16 @@ class UCXRemoteActorBackend(ActorBackend):
                 self._actor_id = None
                 self._advertised_address = None
 
-    async def construct(self, cls_or_factory: Any, *, args: tuple, kwargs: dict) -> None:
+    async def construct(
+        self, cls_or_factory: Any, *, args: tuple, kwargs: dict
+    ) -> None:
         async with self._io_lock:
             await self.start()
             blob = cloudpickle.dumps(cls_or_factory)
-            await ucx.send_control(self._ep, {"op": "construct", "blob": blob, "args": args, "kwargs": kwargs})
+            await ucx.send_control(
+                self._ep,
+                {"op": "construct", "blob": blob, "args": args, "kwargs": kwargs},
+            )
             rep = await ucx.recv_control(self._ep)
             if not rep.get("ok", False):
                 et, em, tb = rep["payload"]
@@ -239,13 +280,16 @@ class UCXRemoteActorBackend(ActorBackend):
             if not self._actor_id:
                 raise RuntimeError("UCX remote actor not constructed.")
             await self.start()
-            await ucx.send_control(self._ep, {
-                "op": "call",
-                "actor_id": self._actor_id,
-                "method": method,
-                "args": args,
-                "kwargs": kwargs,
-            })
+            await ucx.send_control(
+                self._ep,
+                {
+                    "op": "call",
+                    "actor_id": self._actor_id,
+                    "method": method,
+                    "args": args,
+                    "kwargs": kwargs,
+                },
+            )
             rep = await ucx.recv_control(self._ep)
             if rep.get("ok", False):
                 return rep["payload"]
@@ -296,37 +340,48 @@ class UCXRemoteActorBackend(ActorBackend):
             return True
         return False
 
-    async def chan_put(self, *, from_ep: Endpoint, to_ep: Endpoint, name: str, payload: Any) -> None:
+    async def chan_put(
+        self, *, from_ep: Endpoint, to_ep: Endpoint, name: str, payload: Any
+    ) -> None:
         # route to local thread/process/gpu
         if to_ep.scheme == "thread":
             peer = _resolve_backend("thread", to_ep.actor_id)
             if peer is None:
                 raise RuntimeError(f"no local thread actor {to_ep.actor_id}")
-            await peer.chan_put(from_ep=from_ep, to_ep=to_ep, name=name, payload=payload)
+            await peer.chan_put(
+                from_ep=from_ep, to_ep=to_ep, name=name, payload=payload
+            )
             return
         if to_ep.scheme == "process":
             peer = _resolve_backend("process", to_ep.actor_id)
             if peer is None:
                 raise RuntimeError(f"no local process actor {to_ep.actor_id}")
-            await peer.chan_put(from_ep=from_ep, to_ep=to_ep, name=name, payload=payload)
+            await peer.chan_put(
+                from_ep=from_ep, to_ep=to_ep, name=name, payload=payload
+            )
             return
         if to_ep.scheme == "gpu":
             peer = _resolve_backend("gpu", to_ep.actor_id)
             if peer is None:
                 raise RuntimeError(f"no local gpu actor {to_ep.actor_id}")
-            await peer.chan_put(from_ep=from_ep, to_ep=to_ep, name=name, payload=payload)
+            await peer.chan_put(
+                from_ep=from_ep, to_ep=to_ep, name=name, payload=payload
+            )
             return
 
         # same UCX server via persistent ep (already serialized by _io_lock)
         if to_ep.scheme == "ucx" and self._is_same_server(to_ep.address):
             async with self._io_lock:
                 await self.start()
-                await ucx.send_control(self._ep, {
-                    "op": "chan_put",
-                    "from": from_ep.__dict__,
-                    "to": to_ep.__dict__,
-                    "name": name,
-                })
+                await ucx.send_control(
+                    self._ep,
+                    {
+                        "op": "chan_put",
+                        "from": from_ep.__dict__,
+                        "to": to_ep.__dict__,
+                        "name": name,
+                    },
+                )
                 tag, desc = ucx.pack_payload(payload)
                 await ucx.send_payload(self._ep, tag, desc, payload)
                 rep = await ucx.recv_control(self._ep)
@@ -339,12 +394,15 @@ class UCXRemoteActorBackend(ActorBackend):
             host, port = to_ep.address.rsplit(":", 1)
 
             async def _op(e):
-                await ucx.send_control(e, {
-                    "op": "chan_put",
-                    "from": from_ep.__dict__,
-                    "to": to_ep.__dict__,
-                    "name": name,
-                })
+                await ucx.send_control(
+                    e,
+                    {
+                        "op": "chan_put",
+                        "from": from_ep.__dict__,
+                        "to": to_ep.__dict__,
+                        "name": name,
+                    },
+                )
                 tag, desc = ucx.pack_payload(payload)
                 await ucx.send_payload(e, tag, desc, payload)
                 rep = await ucx.recv_control(e)
@@ -389,7 +447,9 @@ class UCXRemoteActorBackend(ActorBackend):
         if ep.scheme == "ucx" and self._is_same_server(ep.address):
             async with self._io_lock:
                 await self.start()
-                await ucx.send_control(self._ep, {"op": "chan_get", "name": name, "timeout": timeout})
+                await ucx.send_control(
+                    self._ep, {"op": "chan_get", "name": name, "timeout": timeout}
+                )
                 rep = await ucx.recv_control(self._ep)
                 if not rep.get("ok", False):
                     raise RuntimeError(rep)
@@ -402,7 +462,15 @@ class UCXRemoteActorBackend(ActorBackend):
             host, port = ep.address.rsplit(":", 1)
 
             async def _op(e):
-                await ucx.send_control(e, {"op": "chan_get", "name": name, "timeout": timeout, "actor_id": ep.actor_id})
+                await ucx.send_control(
+                    e,
+                    {
+                        "op": "chan_get",
+                        "name": name,
+                        "timeout": timeout,
+                        "actor_id": ep.actor_id,
+                    },
+                )
                 rep = await ucx.recv_control(e)
                 if not rep.get("ok", False):
                     raise RuntimeError(rep)
@@ -423,12 +491,15 @@ class UCXRemoteActorBackend(ActorBackend):
 
         raise RuntimeError("Endpoint mismatch")
 
+
 # ----------------------------- UCX remote server --------------------------------
+
 
 class UCXRemoteActorServer:
     """
     UCX multi-actor server with CUDA-aware channels.
     """
+
     def __init__(self, host: str = "0.0.0.0", port: int = 0):
         if not ucx.have_ucx():
             raise RuntimeError("UCX (ucp) is not available in this environment.")
@@ -452,7 +523,9 @@ class UCXRemoteActorServer:
     def _log_error(self, op: Any, exc: Exception) -> None:
         try:
             opname = op if isinstance(op, str) else repr(op)
-            print(f"[UCXRemoteActorServer] error during {opname}: {type(exc).__name__}: {exc}")
+            print(
+                f"[UCXRemoteActorServer] error during {opname}: {type(exc).__name__}: {exc}"
+            )
         except Exception:
             pass
 
@@ -478,19 +551,38 @@ class UCXRemoteActorServer:
                         elif op == "get_ep":
                             if not bound_aid:
                                 raise RuntimeError("no actor on this connection")
-                            await ucx.send_control(ep, {"ok": True,
-                                "payload": {"scheme": "ucx", "address": self.address(), "actor_id": bound_aid}})
+                            await ucx.send_control(
+                                ep,
+                                {
+                                    "ok": True,
+                                    "payload": {
+                                        "scheme": "ucx",
+                                        "address": self.address(),
+                                        "actor_id": bound_aid,
+                                    },
+                                },
+                            )
 
                         elif op == "chan_open":
                             if not bound_aid:
                                 raise RuntimeError("no actor on this connection")
                             name = req["name"]
                             await self._ensure_mb(bound_aid, name)
-                            await ucx.send_control(ep, {"ok": True,
-                                "payload": {"scheme": "ucx", "address": self.address(), "actor_id": bound_aid}})
+                            await ucx.send_control(
+                                ep,
+                                {
+                                    "ok": True,
+                                    "payload": {
+                                        "scheme": "ucx",
+                                        "address": self.address(),
+                                        "actor_id": bound_aid,
+                                    },
+                                },
+                            )
 
                         elif op == "chan_put":
-                            to = req["to"]; name = req["name"]
+                            to = req["to"]
+                            name = req["name"]
                             to_aid = to["actor_id"]
                             q = await self._ensure_mb(to_aid, name)
                             payload = await ucx.recv_payload(ep)
@@ -501,31 +593,45 @@ class UCXRemoteActorServer:
                             aid = bound_aid or req.get("actor_id")
                             if not aid:
                                 raise RuntimeError("actor_id missing for chan_get")
-                            name = req["name"]; timeout = req.get("timeout")
+                            name = req["name"]
+                            timeout = req.get("timeout")
                             q = await self._ensure_mb(aid, name)
                             try:
                                 if timeout is None:
                                     fr, payload = await q.get()
                                 else:
-                                    fr, payload = await asyncio.wait_for(q.get(), timeout=timeout)
-                                await ucx.send_control(ep, {"ok": True, "payload_is_none": False})
+                                    fr, payload = await asyncio.wait_for(
+                                        q.get(), timeout=timeout
+                                    )
+                                await ucx.send_control(
+                                    ep, {"ok": True, "payload_is_none": False}
+                                )
                                 tag, desc = ucx.pack_payload(payload)
                                 await ucx.send_payload(ep, tag, desc, payload)
                             except asyncio.TimeoutError:
-                                await ucx.send_control(ep, {"ok": True, "payload_is_none": True})
+                                await ucx.send_control(
+                                    ep, {"ok": True, "payload_is_none": True}
+                                )
 
                         elif op == "call":
                             if not bound_aid:
                                 raise RuntimeError("no actor on this connection")
                             obj = self._actors[bound_aid]
                             import inspect
+
                             if inspect.iscoroutinefunction(getattr(obj, req["method"])):
-                                res = await getattr(obj, req["method"])(*req.get("args", ()), **(req.get("kwargs", {}) or {}))
+                                res = await getattr(obj, req["method"])(
+                                    *req.get("args", ()),
+                                    **(req.get("kwargs", {}) or {}),
+                                )
                             else:
                                 loop = asyncio.get_running_loop()
                                 res = await loop.run_in_executor(
                                     None,
-                                    lambda: getattr(obj, req["method"])(*req.get("args", ()), **(req.get("kwargs", {}) or {}))
+                                    lambda: getattr(obj, req["method"])(
+                                        *req.get("args", ()),
+                                        **(req.get("kwargs", {}) or {}),
+                                    ),
                                 )
                             await ucx.send_control(ep, {"ok": True, "payload": res})
 
@@ -555,10 +661,12 @@ class UCXRemoteActorServer:
 
         def _host_ip() -> str:
             import socket
+
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 s.connect(("8.8.8.8", 80))
-                ip = s.getsockname()[0]; s.close()
+                ip = s.getsockname()[0]
+                s.close()
                 return ip
             except Exception:
                 return "127.0.0.1"
@@ -577,6 +685,7 @@ class UCXRemoteActorServer:
             q = asyncio.Queue()
             chs[name] = q
         return q
+
 
 async def start_ucx_actor_server(host: str = "0.0.0.0", port: int = 0):
     srv = UCXRemoteActorServer(host=host, port=port)

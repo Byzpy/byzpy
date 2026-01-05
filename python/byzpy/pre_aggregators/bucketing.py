@@ -1,21 +1,24 @@
 from __future__ import annotations
-from typing import Any, Sequence, Iterable, List, Optional, Tuple
+
 import random
+from typing import Any, Iterable, List, Optional, Sequence, Tuple
+
 import numpy as np
 
-from .base import PreAggregator
-from ..configs.backend import get_backend
 from ..aggregators._chunking import select_adaptive_chunk_size
+from ..configs.backend import get_backend
 from ..engine.graph.subtask import SubTask
 from ..engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
+from .base import PreAggregator
 
 try:
     import torch
+
     _HAS_TORCH = True
 except Exception:  # pragma: no cover
     torch = None  # type: ignore
@@ -68,6 +71,7 @@ class Bucketing(PreAggregator):
       dimension. With subtasks: O(n * d / workers).
     - Memory complexity: O(n * d) for stacking vectors.
     """
+
     name = "pre-agg/bucketing"
     supports_subtasks = True
     max_subtasks_inflight = 0
@@ -183,7 +187,9 @@ class Bucketing(PreAggregator):
             try:
                 offset, chunk = part
             except Exception as exc:  # pragma: no cover
-                raise ValueError(f"Bucketing received malformed partial at index {idx}: {part!r}") from exc
+                raise ValueError(
+                    f"Bucketing received malformed partial at index {idx}: {part!r}"
+                ) from exc
             rows = chunk.shape[0]
             assembled[offset : offset + rows, :] = np.asarray(chunk, dtype=np.float64)
 

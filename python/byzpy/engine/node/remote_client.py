@@ -1,9 +1,11 @@
 """Remote node client for network communication."""
+
 from __future__ import annotations
 
 import asyncio
-import cloudpickle
 from typing import Any, Dict, Optional
+
+import cloudpickle
 
 
 def serialize_message(msg: Dict[str, Any]) -> bytes:
@@ -72,16 +74,19 @@ class RemoteNodeClient:
 
         try:
             self._reader, self._writer = await asyncio.wait_for(
-                asyncio.open_connection(self.host, self.port),
-                timeout=timeout
+                asyncio.open_connection(self.host, self.port), timeout=timeout
             )
             self._connected = True
             self._running = True
             self._receive_task = asyncio.create_task(self._receive_loop())
         except (OSError, ConnectionRefusedError) as e:
-            raise ConnectionError(f"Failed to connect to {self.host}:{self.port}") from e
+            raise ConnectionError(
+                f"Failed to connect to {self.host}:{self.port}"
+            ) from e
         except asyncio.TimeoutError:
-            raise asyncio.TimeoutError(f"Connection to {self.host}:{self.port} timed out")
+            raise asyncio.TimeoutError(
+                f"Connection to {self.host}:{self.port} timed out"
+            )
 
     async def disconnect(self) -> None:
         """Disconnect from the server."""
@@ -133,7 +138,7 @@ class RemoteNodeClient:
         to_node_id: str,
         message_type: str,
         payload: Any,
-        from_node_id: Optional[str] = None
+        from_node_id: Optional[str] = None,
     ) -> None:
         """
         Send a message to a node on the remote server.
@@ -165,7 +170,7 @@ class RemoteNodeClient:
 
             serialized = serialize_message(msg)
             # Send length prefix
-            length = len(serialized).to_bytes(4, byteorder='big')
+            length = len(serialized).to_bytes(4, byteorder="big")
             self._writer.write(length + serialized)
             await self._writer.drain()
         except (BrokenPipeError, ConnectionResetError, OSError) as e:
@@ -174,11 +179,16 @@ class RemoteNodeClient:
         except Exception as e:
             # Check if it's a connection-related error
             error_str = str(e).lower()
-            if any(keyword in error_str for keyword in ["closed", "broken", "reset", "connection"]):
+            if any(
+                keyword in error_str
+                for keyword in ["closed", "broken", "reset", "connection"]
+            ):
                 self._connected = False
             raise RuntimeError(f"Failed to send message: {e}") from e
 
-    async def receive_message(self, timeout: Optional[float] = None) -> Optional[Dict[str, Any]]:
+    async def receive_message(
+        self, timeout: Optional[float] = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Receive a message from the server.
 
@@ -190,7 +200,9 @@ class RemoteNodeClient:
         """
         try:
             if timeout is not None:
-                return await asyncio.wait_for(self._message_queue.get(), timeout=timeout)
+                return await asyncio.wait_for(
+                    self._message_queue.get(), timeout=timeout
+                )
             else:
                 return await self._message_queue.get()
         except asyncio.TimeoutError:
@@ -213,7 +225,7 @@ class RemoteNodeClient:
 
         try:
             serialized = serialize_message(registration_msg)
-            length = len(serialized).to_bytes(4, byteorder='big')
+            length = len(serialized).to_bytes(4, byteorder="big")
             self._writer.write(length + serialized)
             await self._writer.drain()
         except Exception as e:
@@ -233,15 +245,13 @@ class RemoteNodeClient:
                 try:
                     # Read length prefix with shorter timeout for faster disconnection detection
                     length_bytes = await asyncio.wait_for(
-                        self._reader.readexactly(4),
-                        timeout=0.05
+                        self._reader.readexactly(4), timeout=0.05
                     )
-                    length = int.from_bytes(length_bytes, byteorder='big')
+                    length = int.from_bytes(length_bytes, byteorder="big")
 
                     # Read message
                     data = await asyncio.wait_for(
-                        self._reader.readexactly(length),
-                        timeout=5.0
+                        self._reader.readexactly(length), timeout=5.0
                     )
 
                     msg = deserialize_message(data)
@@ -250,7 +260,12 @@ class RemoteNodeClient:
                 except asyncio.TimeoutError:
                     # Continue loop to check if still running and connected
                     continue
-                except (asyncio.IncompleteReadError, ConnectionResetError, BrokenPipeError, OSError):
+                except (
+                    asyncio.IncompleteReadError,
+                    ConnectionResetError,
+                    BrokenPipeError,
+                    OSError,
+                ):
                     # Connection closed
                     self._connected = False
                     break
@@ -259,7 +274,10 @@ class RemoteNodeClient:
                     if self._running:
                         # Check if it's a connection error
                         error_str = str(e).lower()
-                        if any(keyword in error_str for keyword in ["closed", "broken", "reset", "connection"]):
+                        if any(
+                            keyword in error_str
+                            for keyword in ["closed", "broken", "reset", "connection"]
+                        ):
                             self._connected = False
                             break
                         # Log error but continue
@@ -273,4 +291,3 @@ class RemoteNodeClient:
 
 
 __all__ = ["RemoteNodeClient", "serialize_message", "deserialize_message"]
-

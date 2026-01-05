@@ -4,6 +4,7 @@ Lightweight cluster helper to manage multiple NodeRunner instances.
 This is a minimal scaffold to exercise decentralized scheduling: each runner
 executes in its own process and can receive messages via the cluster broker.
 """
+
 from __future__ import annotations
 
 import time

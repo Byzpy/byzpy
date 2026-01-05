@@ -1,19 +1,21 @@
 from __future__ import annotations
-from typing import Any, Iterable, Sequence
-from itertools import combinations
+
 import math
+from itertools import combinations
+from typing import Any, Iterable, Sequence
+
 import numpy as np
 
-from ..base import Aggregator
-from .._chunking import select_adaptive_chunk_size
 from ...configs.backend import get_backend
 from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
+from .._chunking import select_adaptive_chunk_size
+from ..base import Aggregator
 
 
 def _pairwise_sq_dists(stacked: Any) -> Any:
@@ -53,10 +55,12 @@ def _to_backend_indices(idxs: Iterable[int], like: Any, be_name: str) -> Any:
     ids = list(idxs)
     if be_name == "torch":
         import torch
+
         dev = getattr(like, "device", None)
         return torch.as_tensor(ids, dtype=torch.long, device=dev)
     else:
         import numpy as np
+
         return np.asarray(ids, dtype=int)
 
 
@@ -83,6 +87,7 @@ class MinimumDiameterAveraging(Aggregator):
 
     Constraint: ``0 <= f < n``.
     """
+
     name = "minimum-diameter-averaging"
     supports_subtasks = True
     max_subtasks_inflight = 0  # auto-scale with actor pool size
@@ -94,7 +99,9 @@ class MinimumDiameterAveraging(Aggregator):
         if chunk_size <= 0:
             raise ValueError("chunk_size must be > 0")
         self.chunk_size = int(chunk_size)
-        self._active_handles: tuple[SharedTensorHandle, SharedTensorHandle] | None = None
+        self._active_handles: tuple[SharedTensorHandle, SharedTensorHandle] | None = (
+            None
+        )
         self.seed_prefix = 2
         self.seeds_per_task = 4
 
@@ -136,7 +143,9 @@ class MinimumDiameterAveraging(Aggregator):
                     best_mean = mean
 
         if best_mean is None or best_diam is None:
-            raise RuntimeError("MinimumDiameterAveraging failed to evaluate any subset.")
+            raise RuntimeError(
+                "MinimumDiameterAveraging failed to evaluate any subset."
+            )
         return _convert_result(mean=best_mean, like=like)
 
     def create_subtasks(self, inputs, *, context: Any):  # type: ignore[override]
@@ -226,13 +235,17 @@ class MinimumDiameterAveraging(Aggregator):
                 try:
                     diam, mean = item
                 except Exception as exc:  # pragma: no cover
-                    raise ValueError(f"MinimumDiameterAveraging received malformed partial at index {idx}: {item!r}") from exc
+                    raise ValueError(
+                        f"MinimumDiameterAveraging received malformed partial at index {idx}: {item!r}"
+                    ) from exc
                 if best_diam is None or diam < best_diam:
                     best_diam = float(diam)
                     best_mean = mean
 
             if best_mean is None:
-                raise RuntimeError("MinimumDiameterAveraging subtasks did not return a result.")
+                raise RuntimeError(
+                    "MinimumDiameterAveraging subtasks did not return a result."
+                )
             return be.copy(be.asarray(best_mean))
         finally:
             handles = self._active_handles or ()
@@ -257,7 +270,9 @@ class MinimumDiameterAveraging(Aggregator):
         )
 
 
-def _mda_eval_combo_numpy(X: np.ndarray, D2: np.ndarray, combo: Iterable[int]) -> tuple[float, np.ndarray]:
+def _mda_eval_combo_numpy(
+    X: np.ndarray, D2: np.ndarray, combo: Iterable[int]
+) -> tuple[float, np.ndarray]:
     idx = np.asarray(tuple(combo), dtype=int)
     sub = D2[np.ix_(idx, idx)]
     diam2 = float(np.max(sub))
@@ -266,7 +281,12 @@ def _mda_eval_combo_numpy(X: np.ndarray, D2: np.ndarray, combo: Iterable[int]) -
     return diam2, mean
 
 
-def _mda_best_subset_chunk(handle_X: SharedTensorHandle, handle_D2: SharedTensorHandle, combos: Sequence[Iterable[int]], like_template) -> tuple[float, Any]:
+def _mda_best_subset_chunk(
+    handle_X: SharedTensorHandle,
+    handle_D2: SharedTensorHandle,
+    combos: Sequence[Iterable[int]],
+    like_template,
+) -> tuple[float, Any]:
     with open_tensor(handle_X) as X, open_tensor(handle_D2) as D2:
         best_diam = None
         best_mean = None
@@ -280,7 +300,14 @@ def _mda_best_subset_chunk(handle_X: SharedTensorHandle, handle_D2: SharedTensor
     return best_diam, _convert_result(mean=best_mean, like=like_template)
 
 
-def _mda_best_subset_seeded(handle_X: SharedTensorHandle, handle_D2: SharedTensorHandle, seeds: Sequence[Iterable[int]], n: int, m: int, like_template) -> tuple[float, Any]:
+def _mda_best_subset_seeded(
+    handle_X: SharedTensorHandle,
+    handle_D2: SharedTensorHandle,
+    seeds: Sequence[Iterable[int]],
+    n: int,
+    m: int,
+    like_template,
+) -> tuple[float, Any]:
     with open_tensor(handle_X) as X, open_tensor(handle_D2) as D2:
         best_diam = None
         best_mean = None
@@ -304,7 +331,9 @@ def _mda_best_subset_seeded(handle_X: SharedTensorHandle, handle_D2: SharedTenso
         return best_diam, _convert_result(mean=best_mean, like=like_template)
 
 
-def _seeded_direct_search(X: np.ndarray, D2: np.ndarray, *, n: int, m: int, seed_prefix: int) -> tuple[float, np.ndarray]:
+def _seeded_direct_search(
+    X: np.ndarray, D2: np.ndarray, *, n: int, m: int, seed_prefix: int
+) -> tuple[float, np.ndarray]:
     depth = min(seed_prefix, m)
     seeds = combinations(range(n), depth)
     best_diam = None
@@ -328,11 +357,20 @@ def _seeded_direct_search(X: np.ndarray, D2: np.ndarray, *, n: int, m: int, seed
                 best_mean = mean
 
     if best_mean is None or best_diam is None:
-        raise RuntimeError("MinimumDiameterAveraging seeded search failed to find a subset.")
+        raise RuntimeError(
+            "MinimumDiameterAveraging seeded search failed to find a subset."
+        )
     return best_diam, best_mean
 
 
-def _search_seed(prefix: list[int], remaining: int, current_max: float, D2: np.ndarray, X: np.ndarray, n: int):
+def _search_seed(
+    prefix: list[int],
+    remaining: int,
+    current_max: float,
+    D2: np.ndarray,
+    X: np.ndarray,
+    n: int,
+):
     best_local: list[float | None] = [None]
 
     def dfs(start_idx: int, remain: int, current: float, indices: list[int]):
@@ -353,12 +391,15 @@ def _search_seed(prefix: list[int], remaining: int, current_max: float, D2: np.n
             yield from dfs(idx + 1, remain - 1, new_max, indices)
             indices.pop()
 
-    yield from dfs(prefix[-1] + 1 if prefix else 0, remaining, current_max, list(prefix))
+    yield from dfs(
+        prefix[-1] + 1 if prefix else 0, remaining, current_max, list(prefix)
+    )
 
 
 def _convert_result(*, mean: np.ndarray, like) -> Any:
     try:
         import torch
+
         if isinstance(like, torch.Tensor):
             t = torch.from_numpy(np.array(mean, copy=False)).to(dtype=like.dtype)
             return t
@@ -371,6 +412,7 @@ def _stack_numpy(gradients: Sequence[Any]) -> np.ndarray:
     first = gradients[0]
     try:
         import torch
+
         if isinstance(first, torch.Tensor):
             stacked = torch.stack([g.detach().cpu() for g in gradients], dim=0)
             return stacked.numpy()
@@ -400,7 +442,9 @@ def _is_shared_handle(obj: Any) -> bool:
     return False
 
 
-def _mda_eval_combo(X: Any, D2: Any, combo: Iterable[int], be_name: str) -> tuple[float, Any]:
+def _mda_eval_combo(
+    X: Any, D2: Any, combo: Iterable[int], be_name: str
+) -> tuple[float, Any]:
     be = get_backend()
     idx = _to_backend_indices(combo, like=X, be_name=be_name)
     sub = be.index_select(D2, axis=0, indices=idx)

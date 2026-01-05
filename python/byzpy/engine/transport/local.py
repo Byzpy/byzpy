@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """
 Local in-process transport that dispatches to registered handlers.
 """

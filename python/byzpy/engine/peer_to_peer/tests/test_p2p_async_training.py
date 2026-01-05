@@ -4,22 +4,22 @@ Category 6: Fully Asynchronous P2P Training Tests
 Tests for fully decentralized P2P training where nodes progress independently
 without a synchronous round() API.
 """
+
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 import torch
-
-from byzpy.engine.node.decentralized import DecentralizedNode
-from byzpy.engine.node.cluster import DecentralizedCluster
-from byzpy.engine.node.application import HonestNodeApplication
-from byzpy.engine.node.context import InProcessContext, ProcessContext
-from byzpy.engine.peer_to_peer.topology import Topology
-from byzpy.engine.graph.pool import ActorPoolConfig
-from byzpy.engine.graph.ops import CallableOp, make_single_operator_graph
-from byzpy.engine.graph.graph import GraphInput
-from byzpy.engine.graph.graph import ComputationGraph, GraphNode
 from byzpy.aggregators.coordinate_wise import CoordinateWiseMedian
+from byzpy.engine.graph.graph import ComputationGraph, GraphInput, GraphNode
+from byzpy.engine.graph.ops import CallableOp, make_single_operator_graph
+from byzpy.engine.graph.pool import ActorPoolConfig
+from byzpy.engine.node.application import HonestNodeApplication
+from byzpy.engine.node.cluster import DecentralizedCluster
+from byzpy.engine.node.context import InProcessContext, ProcessContext
+from byzpy.engine.node.decentralized import DecentralizedNode
+from byzpy.engine.peer_to_peer.topology import Topology
 
 
 @pytest.mark.asyncio
@@ -40,6 +40,7 @@ async def test_nodes_progress_independently_without_round_api():
         def make_half_step(node_idx):
             def half_step(lr):
                 return torch.tensor([float(node_idx) * lr, 2.0 * float(node_idx) * lr])
+
             return half_step
 
         half_step_graph = make_single_operator_graph(
@@ -69,6 +70,7 @@ async def test_nodes_progress_independently_without_round_api():
         def make_aggregation_handler(nid):
             async def on_gradient(from_id, payload):
                 received_gradients[nid].append(payload["vector"])
+
             return on_gradient
 
         node.register_message_handler("gradient", make_aggregation_handler(f"node{i}"))
@@ -186,7 +188,6 @@ async def test_nodes_aggregate_when_neighbors_respond():
     await cluster.shutdown_all()
 
 
-
 @pytest.mark.asyncio
 async def test_p2p_training_fully_asynchronous_ring():
     """End-to-end fully asynchronous P2P training with ring topology."""
@@ -205,6 +206,7 @@ async def test_p2p_training_fully_asynchronous_ring():
         def make_half_step(node_idx):
             def half_step(lr):
                 return torch.tensor([float(node_idx) * lr, 2.0 * float(node_idx) * lr])
+
             return half_step
 
         half_step_graph = make_single_operator_graph(
@@ -235,9 +237,12 @@ async def test_p2p_training_fully_asynchronous_ring():
             async def on_gradient(from_id, payload):
                 # Trigger aggregation
                 training_rounds[nid] += 1
+
             return on_gradient
 
-        node.register_message_handler("gradient", make_training_handler(f"node{i}", node))
+        node.register_message_handler(
+            "gradient", make_training_handler(f"node{i}", node)
+        )
 
     cluster._update_node_id_maps()
     await cluster.start_all()
@@ -258,4 +263,3 @@ async def test_p2p_training_fully_asynchronous_ring():
         assert training_rounds[node_id] > 0
 
     await cluster.shutdown_all()
-

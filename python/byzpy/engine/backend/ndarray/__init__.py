@@ -1,2 +1,2 @@
-from .base import _Backend, Tensor
+from .base import Tensor, _Backend
 from .torch import _TorchBackend

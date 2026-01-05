@@ -1,21 +1,26 @@
 from __future__ import annotations
+
 from typing import List, Optional, Tuple
+
 import torch
 import torch.nn as nn
+
 from ...aggregators import Aggregator
-from ...pre_aggregators import PreAggregator
 from ...attacks import Attack
+from ...pre_aggregators import PreAggregator
 
 Tensor = torch.Tensor
 
+
 def _flatten_params(model: nn.Module) -> Tensor:
     return torch.cat([p.detach().view(-1) for p in model.parameters()])
+
 
 def _write_params_(model: nn.Module, vec: Tensor) -> None:
     off = 0
     for p in model.parameters():
         n = p.numel()
-        p.data.copy_(vec[off:off+n].view_as(p).to(p.device))
+        p.data.copy_(vec[off : off + n].view_as(p).to(p.device))
         off += n
 
 
@@ -37,6 +42,7 @@ class P2PHonestMixin:
     device: torch.device
     criterion: nn.Module
     optimizer: torch.optim.Optimizer
+
     def next_batch(self) -> Tuple[Tensor, Tensor]: ...  # provided by the concrete node
 
     p2p_agg: Aggregator
@@ -91,8 +97,7 @@ class P2PByzantineMixin:
         like: Optional[Tensor] = None,
     ) -> Tensor:
         mal = self.attack.apply(
-            model=None, x=None, y=None,
-            honest_grads=neighbor_vectors, base_grad=None
+            model=None, x=None, y=None, honest_grads=neighbor_vectors, base_grad=None
         )
         out = torch.as_tensor(mal)
         if like is not None:

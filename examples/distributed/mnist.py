@@ -46,11 +46,12 @@ if str(REPO_ROOT) not in sys.path:
 
 from byzpy.aggregators.geometric_wise.krum import MultiKrum
 from byzpy.configs.actor import set_actor
-from byzpy.engine.node.actors import HonestNodeActor, ByzantineNodeActor
+from byzpy.engine.node.actors import ByzantineNodeActor, HonestNodeActor
 from byzpy.engine.parameter_server.ps import ParameterServer
+
 from examples.ps.nodes import (
-    DistributedPSHonestNode,
     DistributedPSByzNode,
+    DistributedPSHonestNode,
     SmallCNN,
     select_pool_backend,
 )
@@ -96,16 +97,35 @@ async def main() -> None:
         required=True,
         help="Comma-separated list of remote actor server addresses (e.g., tcp://192.168.1.10:29000,tcp://192.168.1.11:29000)",
     )
-    parser.add_argument("--num-honest", type=int, default=3, help="Number of honest nodes.")
-    parser.add_argument("--num-byz", type=int, default=1, help="Number of Byzantine nodes.")
-    parser.add_argument("--rounds", type=int, default=50, help="Number of training rounds.")
-    parser.add_argument("--batch-size", type=int, default=64, help="Batch size per node.")
+    parser.add_argument(
+        "--num-honest", type=int, default=3, help="Number of honest nodes."
+    )
+    parser.add_argument(
+        "--num-byz", type=int, default=1, help="Number of Byzantine nodes."
+    )
+    parser.add_argument(
+        "--rounds", type=int, default=50, help="Number of training rounds."
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=64, help="Batch size per node."
+    )
     parser.add_argument("--lr", type=float, default=0.05, help="Learning rate.")
-    parser.add_argument("--f", type=int, default=1, help="MultiKrum fault tolerance parameter.")
-    parser.add_argument("--q", type=int, default=None, help="MultiKrum parameter q (defaults to n - f - 1).")
-    parser.add_argument("--chunk-size", type=int, default=32, help="MultiKrum chunk size.")
+    parser.add_argument(
+        "--f", type=int, default=1, help="MultiKrum fault tolerance parameter."
+    )
+    parser.add_argument(
+        "--q",
+        type=int,
+        default=None,
+        help="MultiKrum parameter q (defaults to n - f - 1).",
+    )
+    parser.add_argument(
+        "--chunk-size", type=int, default=32, help="MultiKrum chunk size."
+    )
     parser.add_argument("--seed", type=int, default=42, help="Random seed.")
-    parser.add_argument("--data-root", type=str, default="./data", help="MNIST data directory.")
+    parser.add_argument(
+        "--data-root", type=str, default="./data", help="MNIST data directory."
+    )
     parser.add_argument(
         "--eval-interval",
         type=int,
@@ -154,7 +174,9 @@ async def main() -> None:
     print("=" * 70)
 
     tfm = transforms.Compose([transforms.ToTensor()])
-    train_dataset = datasets.MNIST(root=args.data_root, train=True, download=True, transform=tfm)
+    train_dataset = datasets.MNIST(
+        root=args.data_root, train=True, download=True, transform=tfm
+    )
     shards = shard_indices(len(train_dataset), args.num_honest)
 
     def pick_remote_host(node_index: int) -> str:
@@ -234,7 +256,9 @@ async def main() -> None:
             eval_model.load_state_dict(sd, strict=True)
             loss, acc = await asyncio.to_thread(evaluate, eval_model, device)
             elapsed = time.perf_counter() - start_time
-            print(f"[round {r:04d}] test loss={loss:.4f}  acc={acc:.4f}  elapsed={elapsed:.2f}s")
+            print(
+                f"[round {r:04d}] test loss={loss:.4f}  acc={acc:.4f}  elapsed={elapsed:.2f}s"
+            )
 
     total_time = time.perf_counter() - start_time
 

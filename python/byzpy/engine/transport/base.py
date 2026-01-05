@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 """
 Transport abstraction for decentralized runners.
 """
-from typing import Protocol, Any
+from typing import Any, Protocol
 
 
 class Transport(Protocol):

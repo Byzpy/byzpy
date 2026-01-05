@@ -1,13 +1,14 @@
 """Shared helpers for turning user specs into actor backend instances."""
+
 from __future__ import annotations
 
 from typing import Union
 
-from .base import ActorBackend
-from .backends.thread import ThreadActorBackend
+from .backends.gpu import GPUActorBackend, UCXRemoteActorBackend
 from .backends.process import ProcessActorBackend
 from .backends.remote import RemoteActorBackend
-from .backends.gpu import GPUActorBackend, UCXRemoteActorBackend
+from .backends.thread import ThreadActorBackend
+from .base import ActorBackend
 
 
 def resolve_backend(spec: Union[str, ActorBackend]) -> ActorBackend:
@@ -57,10 +58,10 @@ def resolve_backend(spec: Union[str, ActorBackend]) -> ActorBackend:
         if spec == "gpu":
             return GPUActorBackend()
         if spec.startswith("tcp://"):
-            host, port_str = spec[len("tcp://"):].rsplit(":", 1)
+            host, port_str = spec[len("tcp://") :].rsplit(":", 1)
             return RemoteActorBackend(host, int(port_str))
         if spec.startswith("ucx://"):
-            host, port_str = spec[len("ucx://"):].rsplit(":", 1)
+            host, port_str = spec[len("ucx://") :].rsplit(":", 1)
             return UCXRemoteActorBackend(host, int(port_str))
         raise ValueError(f"Unknown actor backend spec: {spec!r}")
     return spec

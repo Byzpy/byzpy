@@ -1,20 +1,21 @@
 from __future__ import annotations
-from typing import Any, Optional, List, Iterable
+
+from typing import Any, Iterable, List, Optional
+
 import numpy as np
 import torch
 import torch.nn as nn
-
+from byzpy.aggregators._chunking import select_adaptive_chunk_size
 from byzpy.attacks.base import Attack
 from byzpy.configs.backend import get_backend
 from byzpy.engine.graph.operator import OpContext
 from byzpy.engine.graph.subtask import SubTask
 from byzpy.engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
-from byzpy.aggregators._chunking import select_adaptive_chunk_size
 
 
 class SignFlipAttack(Attack):
@@ -62,7 +63,9 @@ class SignFlipAttack(Attack):
         total = flat.shape[0]
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
-        chunk = select_adaptive_chunk_size(total, self.chunk_size, pool_size=pool_size, allow_small_chunks=True)
+        chunk = select_adaptive_chunk_size(
+            total, self.chunk_size, pool_size=pool_size, allow_small_chunks=True
+        )
 
         def _iter() -> Iterable[SubTask]:
             chunk_id = 0
@@ -82,7 +85,11 @@ class SignFlipAttack(Attack):
         if not partials:
             return super().compute(inputs, context=context)
 
-        if self._handle is None or self._flat_shape is None or self._like_template is None:
+        if (
+            self._handle is None
+            or self._flat_shape is None
+            or self._like_template is None
+        ):
             raise RuntimeError("SignFlipAttack missing chunk state.")
 
         total = int(np.prod(self._flat_shape))
@@ -91,7 +98,9 @@ class SignFlipAttack(Attack):
             try:
                 start, chunk = part
             except Exception as exc:  # pragma: no cover
-                raise ValueError(f"SignFlipAttack received malformed partial at index {idx}: {part!r}") from exc
+                raise ValueError(
+                    f"SignFlipAttack received malformed partial at index {idx}: {part!r}"
+                ) from exc
             end = start + chunk.shape[0]
             assembled[start:end] = chunk
 
@@ -105,7 +114,9 @@ class SignFlipAttack(Attack):
             self._like_template = None
 
 
-def _signflip_chunk(handle: SharedTensorHandle, start: int, end: int, scale: float) -> tuple[int, np.ndarray]:
+def _signflip_chunk(
+    handle: SharedTensorHandle, start: int, end: int, scale: float
+) -> tuple[int, np.ndarray]:
     with open_tensor(handle) as flat:
         view = np.array(flat, copy=False)
         chunk = np.array(view[start:end], copy=True)

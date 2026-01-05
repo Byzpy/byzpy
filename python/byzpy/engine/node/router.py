@@ -1,4 +1,5 @@
 """Topology-aware message router for decentralized nodes."""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Union
@@ -37,12 +38,16 @@ class MessageRouter:
         self._node_id_map = node_id_map or {}
 
         # Build reverse map (string -> int)
-        self._reverse_id_map: Dict[str, int] = {v: k for k, v in self._node_id_map.items()}
+        self._reverse_id_map: Dict[str, int] = {
+            v: k for k, v in self._node_id_map.items()
+        }
 
         # Validate node_id exists in topology (only if using integer IDs directly)
         if topology is not None and isinstance(node_id, int):
             if node_id not in range(topology.n):
-                raise ValueError(f"node_id {node_id} is not in topology (n={topology.n})")
+                raise ValueError(
+                    f"node_id {node_id} is not in topology (n={topology.n})"
+                )
         # For string node_ids, validation is deferred until node_id_map is set
 
     def _to_internal_id(self, node_id: Union[int, str]) -> int:
@@ -106,7 +111,10 @@ class MessageRouter:
         target_internal = self._to_internal_id(target_node_id)
         if target_internal < 0:
             # Unknown target - check if it's an integer in range
-            if isinstance(target_node_id, int) and 0 <= target_node_id < self.topology.n:
+            if (
+                isinstance(target_node_id, int)
+                and 0 <= target_node_id < self.topology.n
+            ):
                 target_internal = target_node_id
             else:
                 return False
@@ -147,7 +155,9 @@ class MessageRouter:
 
         # Validate neighbor
         if self.topology is not None and not self.can_send_to(target_node_id):
-            raise ValueError(f"Target {target_node_id} is not a neighbor of {self.node_id}")
+            raise ValueError(
+                f"Target {target_node_id} is not a neighbor of {self.node_id}"
+            )
 
         await context.send_message(target_node_id, message_type, payload)
 
@@ -202,7 +212,9 @@ class MessageRouter:
         if self.topology is not None:
             for target_id in target_node_ids:
                 if not self.can_send_to(target_id):
-                    raise ValueError(f"Target {target_id} is not a neighbor of {self.node_id}")
+                    raise ValueError(
+                        f"Target {target_id} is not a neighbor of {self.node_id}"
+                    )
 
         if context is None:
             return
@@ -249,4 +261,3 @@ class MessageRouter:
 
 
 __all__ = ["MessageRouter"]
-

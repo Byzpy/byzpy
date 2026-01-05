@@ -22,10 +22,16 @@ class BenchmarkRun:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Benchmark ByzFL's Clipping pre-aggregator.")
-    parser.add_argument("--num-vectors", type=int, default=256, help="Number of vectors.")
+    parser = argparse.ArgumentParser(
+        description="Benchmark ByzFL's Clipping pre-aggregator."
+    )
+    parser.add_argument(
+        "--num-vectors", type=int, default=256, help="Number of vectors."
+    )
     parser.add_argument("--dim", type=int, default=65536, help="Vector dimension.")
-    parser.add_argument("--threshold", type=float, default=2.0, help="Clipping threshold.")
+    parser.add_argument(
+        "--threshold", type=float, default=2.0, help="Clipping threshold."
+    )
     parser.add_argument("--warmup", type=int, default=0, help="Warm-up iterations.")
     parser.add_argument("--repeat", type=int, default=2, help="Timed iterations.")
     parser.add_argument("--seed", type=int, default=0, help="Random seed for vectors.")
@@ -43,10 +49,15 @@ def _maybe_sync(device: torch.device) -> None:
         torch.cuda.synchronize(device)
 
 
-def _make_vectors(n: int, dim: int, seed: int, device: torch.device) -> list[torch.Tensor]:
+def _make_vectors(
+    n: int, dim: int, seed: int, device: torch.device
+) -> list[torch.Tensor]:
     gen = torch.Generator(device=device)
     gen.manual_seed(seed)
-    return [torch.randn(dim, generator=gen, device=device, dtype=torch.float32) for _ in range(n)]
+    return [
+        torch.randn(dim, generator=gen, device=device, dtype=torch.float32)
+        for _ in range(n)
+    ]
 
 
 def _require_byzfl() -> "type[object]":

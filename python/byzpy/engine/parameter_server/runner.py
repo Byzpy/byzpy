@@ -6,14 +6,15 @@ workers compute gradients and send them to the server, which aggregates them.
 This is a scaffold toward decentralized scheduling; it does not replace the
 full ParameterServer yet.
 """
+
 from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Sequence
 
 import torch
 
-from ..node_runner import NodeRunner
 from ..node_cluster import NodeCluster
+from ..node_runner import NodeRunner
 
 
 def _make_worker_step(grad_fn: Callable[[], torch.Tensor]):

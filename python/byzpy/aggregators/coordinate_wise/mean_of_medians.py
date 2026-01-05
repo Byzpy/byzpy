@@ -1,21 +1,24 @@
 from __future__ import annotations
+
 from typing import Any, Iterable, Sequence
+
 import numpy as np
 
-from ..base import Aggregator
-from .._chunking import select_adaptive_chunk_size
 from ...configs.backend import get_backend
 from ...engine.graph.subtask import SubTask
 from ...engine.storage.shared_store import (
     SharedTensorHandle,
-    register_tensor,
-    open_tensor,
     cleanup_tensor,
+    open_tensor,
+    register_tensor,
 )
+from .._chunking import select_adaptive_chunk_size
+from ..base import Aggregator
 from ._tiling import flatten_gradients
 
 try:  # optional torch dependency
     import torch
+
     _HAS_TORCH = True
 except Exception:  # pragma: no cover
     torch = None  # type: ignore
@@ -32,6 +35,7 @@ class MeanOfMedians(Aggregator):
     * Keeps the ``(n - f)`` values whose ``|x_{ik} - m_k|`` are smallest.
     * Returns the mean of the retained values.
     """
+
     name = "mean-of-medians"
     supports_subtasks = True
     max_subtasks_inflight = 0
@@ -68,10 +72,10 @@ class MeanOfMedians(Aggregator):
         like = gradients[0]
         X = be.stack([be.asarray(g, like=like) for g in gradients], axis=0)  # (n, ...)
 
-        med = be.median(X, axis=0)                 # (...)
-        deviations = be.abs(X - med)               # (n, ...)
-        order = be.argsort(deviations, axis=0)     # (n, ...)
-        keep_idx = order[: n - self.f]             # (n - f, ...)
+        med = be.median(X, axis=0)  # (...)
+        deviations = be.abs(X - med)  # (n, ...)
+        order = be.argsort(deviations, axis=0)  # (n, ...)
+        keep_idx = order[: n - self.f]  # (n - f, ...)
 
         nearest_vals = be.take_along_axis(X, keep_idx, axis=0)  # (n - f, ...)
         return be.mean(nearest_vals, axis=0)
@@ -92,7 +96,9 @@ class MeanOfMedians(Aggregator):
         features = flat.shape[1]
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
-        chunk = select_adaptive_chunk_size(features, self.chunk_size, pool_size=pool_size)
+        chunk = select_adaptive_chunk_size(
+            features, self.chunk_size, pool_size=pool_size
+        )
 
         def _iter() -> Iterable[SubTask]:
             chunk_id = 0
@@ -131,7 +137,9 @@ class MeanOfMedians(Aggregator):
             self._active_handle = None
 
 
-def _meamed_chunk(handle: SharedTensorHandle, n: int, f: int, start: int, end: int, like_template) -> tuple[int, np.ndarray]:
+def _meamed_chunk(
+    handle: SharedTensorHandle, n: int, f: int, start: int, end: int, like_template
+) -> tuple[int, np.ndarray]:
     with open_tensor(handle) as flat:
         view = flat[:, start:end]
         chunk = np.array(view, copy=False)

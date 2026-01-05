@@ -1,27 +1,29 @@
 from __future__ import annotations
+
 import asyncio
 import os
+import sys
 from typing import List, Tuple
 
 import torch
 import torch.utils.data as data
 from torchvision import datasets, transforms
 
-import os
-import sys
-
 SCRIPT_DIR = os.path.dirname(__file__)
-PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir, os.pardir, os.pardir))
+PROJECT_ROOT = os.path.abspath(
+    os.path.join(SCRIPT_DIR, os.pardir, os.pardir, os.pardir)
+)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from byzpy.aggregators.coordinate_wise import CoordinateWiseMedian
 from byzpy.configs.actor import set_actor
-from byzpy.engine.node.actors import HonestNodeActor, ByzantineNodeActor
+from byzpy.engine.node.actors import ByzantineNodeActor, HonestNodeActor
 from byzpy.engine.parameter_server.ps import ParameterServer
+
 from examples.ps.nodes import (
-    DistributedPSHonestNode,
     DistributedPSByzNode,
+    DistributedPSHonestNode,
     SmallCNN,
     select_pool_backend,
 )
@@ -68,7 +70,9 @@ async def main():
     data_root = os.environ.get("PS_DATA", "./data")
 
     tfm = transforms.Compose([transforms.ToTensor()])
-    _tmp_train = datasets.MNIST(root=data_root, train=True, download=True, transform=tfm)
+    _tmp_train = datasets.MNIST(
+        root=data_root, train=True, download=True, transform=tfm
+    )
     shards = shard_indices(len(_tmp_train), n_honest)
 
     def pick_remote(i: int) -> str:

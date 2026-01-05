@@ -1,11 +1,13 @@
 from __future__ import annotations
+
 from typing import Any, Iterable, List, Optional, Sequence
+
 import numpy as np
 import torch
 import torch.nn as nn
-
-from byzpy.attacks.base import Attack
 from byzpy.aggregators._chunking import select_adaptive_chunk_size
+from byzpy.aggregators.coordinate_wise._tiling import flatten_gradients
+from byzpy.attacks.base import Attack
 from byzpy.configs.backend import get_backend
 from byzpy.engine.graph.subtask import SubTask
 from byzpy.engine.storage.shared_store import (
@@ -14,7 +16,6 @@ from byzpy.engine.storage.shared_store import (
     open_tensor,
     register_tensor,
 )
-from byzpy.aggregators.coordinate_wise._tiling import flatten_gradients
 
 
 def _to_like(arr: np.ndarray, like: Any) -> Any:
@@ -63,7 +64,9 @@ class MimicAttack(Attack):
         if not honest_grads:
             raise ValueError("MimicAttack requires honest_grads.")
         if self.epsilon >= len(honest_grads):
-            raise ValueError(f"epsilon must be < number of honest_grads (got epsilon={self.epsilon}, n={len(honest_grads)})")
+            raise ValueError(
+                f"epsilon must be < number of honest_grads (got epsilon={self.epsilon}, n={len(honest_grads)})"
+            )
         g = honest_grads[self.epsilon]
         if isinstance(g, (np.ndarray, torch.Tensor)):
             return g
@@ -75,7 +78,9 @@ class MimicAttack(Attack):
         if not isinstance(grads, Sequence) or not grads:
             return []
         if self.epsilon >= len(grads):
-            raise ValueError(f"epsilon must be < number of honest_grads (got epsilon={self.epsilon}, n={len(grads)})")
+            raise ValueError(
+                f"epsilon must be < number of honest_grads (got epsilon={self.epsilon}, n={len(grads)})"
+            )
 
         flat_shape, flat = flatten_gradients(grads)
         feature_dim = flat.shape[1]
@@ -90,7 +95,9 @@ class MimicAttack(Attack):
 
         metadata = getattr(context, "metadata", None) or {}
         pool_size = int(metadata.get("pool_size") or 0)
-        chunk = select_adaptive_chunk_size(feature_dim, self.chunk_size, pool_size=pool_size, allow_small_chunks=True)
+        chunk = select_adaptive_chunk_size(
+            feature_dim, self.chunk_size, pool_size=pool_size, allow_small_chunks=True
+        )
 
         def _iter() -> Iterable[SubTask]:
             chunk_id = 0

@@ -1,15 +1,16 @@
 """Tests for Remote Node Integration - Categories 5-7 from Milestone 5 Test Plan."""
+
 import asyncio
+
 import pytest
 import torch
-from byzpy.engine.node.decentralized import DecentralizedNode
-from byzpy.engine.node.context import RemoteContext, InProcessContext, ProcessContext
-from byzpy.engine.node.remote_server import RemoteNodeServer
-from byzpy.engine.node.cluster import DecentralizedCluster
-from byzpy.engine.node.application import NodeApplication
 from byzpy.engine.graph.pool import ActorPoolConfig
+from byzpy.engine.node.application import NodeApplication
+from byzpy.engine.node.cluster import DecentralizedCluster
+from byzpy.engine.node.context import InProcessContext, ProcessContext, RemoteContext
+from byzpy.engine.node.decentralized import DecentralizedNode
+from byzpy.engine.node.remote_server import RemoteNodeServer
 from byzpy.engine.peer_to_peer.topology import Topology
-
 
 _port_counter = 9200
 
@@ -28,12 +29,14 @@ def make_app():
             name=name,
             actor_pool=[ActorPoolConfig(backend="thread", count=1)],
         )
+
     return _make_app
 
 
 # =============================================================================
 # Category 5: DecentralizedNode with RemoteContext
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_decentralizednode_with_remotecontext(make_app):
@@ -82,6 +85,7 @@ async def test_decentralizednode_remote_send_message(make_app):
 
     async def handler(from_id, payload):
         received.append((from_id, payload))
+
     server_node.register_message_handler("test", handler)
     await server.register_node(server_node)
 
@@ -116,6 +120,7 @@ async def test_decentralizednode_remote_send_message(make_app):
 # =============================================================================
 # Category 6: DecentralizedCluster with Remote Nodes
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_decentralizedcluster_mixed_contexts(make_app):
@@ -170,6 +175,7 @@ async def test_decentralizedcluster_remote_node_communication(make_app):
     # Note: Cross-context communication (ProcessContext <-> RemoteContext) requires
     # the local node to be accessible via the server
     from byzpy.engine.node.context import InProcessContext
+
     local_app = make_app("local")
     local_node = DecentralizedNode(
         node_id="local_node",
@@ -183,12 +189,15 @@ async def test_decentralizedcluster_remote_node_communication(make_app):
 
     async def handler(from_id, payload):
         received.append((from_id, payload))
+
     local_node.register_message_handler("test", handler)
 
     # Add remote node
     remote_app = make_app("remote")
     remote_context = RemoteContext(host="localhost", port=port)
-    remote_node = await cluster.add_node("remote_node", remote_app, context=remote_context)
+    remote_node = await cluster.add_node(
+        "remote_node", remote_app, context=remote_context
+    )
     cluster._node_id_map[1] = "remote_node"
 
     # Start local node manually (it's already registered with server)
@@ -216,6 +225,7 @@ async def test_decentralizedcluster_remote_node_communication(make_app):
 # Category 7: Integration Tests - Distributed P2P Training
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_distributed_p2p_training_remote_nodes(make_app):
     """End-to-end test: P2P training with nodes on remote servers."""
@@ -237,12 +247,15 @@ async def test_distributed_p2p_training_remote_nodes(make_app):
     for i in range(2):
         app = make_app(f"app-{i}")
         context = RemoteContext(host="localhost", port=port)
-        node = await cluster.add_node(f"node{i}", app, topology=topology, context=context)
+        node = await cluster.add_node(
+            f"node{i}", app, topology=topology, context=context
+        )
         cluster._node_id_map[i] = f"node{i}"
 
         def make_handler(nid):
             async def on_gradient(from_id, payload):
                 gradients_received[nid].append(torch.tensor(payload["gradient"]))
+
             return on_gradient
 
         node.register_message_handler("gradient", make_handler(f"node{i}"))
@@ -288,6 +301,7 @@ async def test_distributed_p2p_training_mixed_local_remote(make_app):
 
     # Add local node - register with server so it can communicate with remote nodes
     from byzpy.engine.node.context import InProcessContext
+
     local_app = make_app("local")
     local_node = DecentralizedNode(
         node_id="local",
@@ -302,6 +316,7 @@ async def test_distributed_p2p_training_mixed_local_remote(make_app):
     def make_handler(nid):
         async def on_gradient(from_id, payload):
             gradients_received[nid].append(torch.tensor(payload["gradient"]))
+
         return on_gradient
 
     local_node.register_message_handler("gradient", make_handler("local"))
@@ -310,7 +325,9 @@ async def test_distributed_p2p_training_mixed_local_remote(make_app):
     # Add remote node
     remote_app = make_app("remote")
     remote_context = RemoteContext(host="localhost", port=port)
-    remote_node = await cluster.add_node("remote", remote_app, topology=topology, context=remote_context)
+    remote_node = await cluster.add_node(
+        "remote", remote_app, topology=topology, context=remote_context
+    )
     cluster._node_id_map[1] = "remote"
     remote_node.register_message_handler("gradient", make_handler("remote"))
 
@@ -336,4 +353,3 @@ async def test_distributed_p2p_training_mixed_local_remote(make_app):
         await serve_task
     except asyncio.CancelledError:
         pass
-

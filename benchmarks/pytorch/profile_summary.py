@@ -4,13 +4,12 @@ Run each benchmark for the PyTorch baseline and ActorPool worker counts to produ
 """
 from __future__ import annotations
 
+import argparse
 import dataclasses
 import math
 import re
 import subprocess
 from typing import Dict, List, Optional
-import argparse
-
 
 WORKERS = [2, 4, 6]
 
@@ -106,9 +105,19 @@ def _format_speedup(direct: float, runtime: float) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Profile benchmarks for selected worker counts.")
-    parser.add_argument("--bench", action="append", help="Benchmark name (substring) to run. Repeatable.")
-    parser.add_argument("--workers", default="2,4,6", help="Comma-separated worker counts (default: 2,4,6)")
+    parser = argparse.ArgumentParser(
+        description="Profile benchmarks for selected worker counts."
+    )
+    parser.add_argument(
+        "--bench",
+        action="append",
+        help="Benchmark name (substring) to run. Repeatable.",
+    )
+    parser.add_argument(
+        "--workers",
+        default="2,4,6",
+        help="Comma-separated worker counts (default: 2,4,6)",
+    )
     args = parser.parse_args()
 
     selected_workers = [int(w.strip()) for w in args.workers.split(",") if w.strip()]
@@ -116,7 +125,9 @@ def main() -> None:
     worker_arg = ",".join(str(w) for w in selected_workers)
     rows = []
     for spec in SPECS:
-        if args.bench and not any(term.lower() in spec.name.lower() for term in args.bench):
+        if args.bench and not any(
+            term.lower() in spec.name.lower() for term in args.bench
+        ):
             continue
         cmd = spec.command_template
         if worker_arg:
