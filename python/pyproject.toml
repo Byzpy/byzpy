@@ -17,7 +17,7 @@ dependencies = [
     "numpy>=1.24,<2.1",
     "matplotlib>=3.8,<3.11",
     "cloudpickle>=2.2,<4.0",
-    "tqdm",
+    "tqdm>=4.65,<5.0",
 ]
 keywords = ["distributed-learning", "byzantine", "federated-learning", "pytorch", "robust-ml"]
 classifiers = [

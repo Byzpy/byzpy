@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Awaitable, Callable, List, Optional
 
 from tqdm.auto import tqdm
 
@@ -7,13 +7,13 @@ from tqdm.auto import tqdm
 async def train_with_progress(
     ps: Any,
     rounds: int,
-    eval_callback: Optional[Callable[[int], Any]] = None,
-    eval_interval: int = 50,
-) -> List[Dict[str, Any]]:
+    eval_callback: Optional[Callable[[int], Awaitable[Any]]] = None,
+    eval_interval: int = 1,
+) -> List[dict]:
     """
     Wraps ParameterServer rounds with a tqdm progress bar and optional evaluation.
     """
-    history: List[Dict[str, Any]] = []
+    history: List[dict] = []
 
     with tqdm(total=rounds, desc="Training") as pbar:
         for r in range(1, rounds + 1):
