@@ -1,0 +1,88 @@
+# Example configuration for remote TCP parameter server training
+#
+# Each node needs to know the server address and all worker addresses.
+# For local testing, use localhost with different ports.
+# For remote deployment, use actual IP addresses.
+
+# Training parameters
+training:
+  rounds: 50
+  batch_size: 64
+  learning_rate: 0.05
+  momentum: 0.9
+
+# Aggregation settings
+aggregation:
+  method: "coordinate_wise_median"  # Options: coordinate_wise_median, multi_krum
+  # For multi_krum:
+  # krum_f: 1  # Number of byzantine nodes to tolerate
+  # krum_q: 3  # Number of gradients to select
+
+# Parameter Server (central coordinator)
+server:
+  host: localhost  # Use actual IP for remote: e.g., 192.168.1.100
+  port: 9000
+  bind_host: "0.0.0.0"
+
+# Worker nodes
+# NOTE: Workers act as outbound TCP clients connecting to the server.
+# The 'port' and 'bind_host' fields below are unused by ps_node.py
+# (workers initiate outbound connections only). They are kept for
+# documentation and potential future use where workers might also listen.
+workers:
+  # Honest workers
+  - id: 0
+    host: localhost  # Use actual IP for remote: e.g., 192.168.1.101
+    # port: 9001      # Unused: workers initiate outbound connections only
+    type: honest
+    # bind_host: "0.0.0.0"  # Unused: workers initiate outbound connections only
+    data_shard: 0  # Which shard of training data to use
+
+  - id: 1
+    host: localhost  # Use actual IP for remote: e.g., 192.168.1.102
+    # port: 9002      # Unused: workers initiate outbound connections only
+    type: honest
+    # bind_host: "0.0.0.0"  # Unused: workers initiate outbound connections only
+    data_shard: 1
+
+  - id: 2
+    host: localhost  # Use actual IP for remote: e.g., 192.168.1.103
+    # port: 9003      # Unused: workers initiate outbound connections only
+    type: honest
+    # bind_host: "0.0.0.0"  # Unused: workers initiate outbound connections only
+    data_shard: 2
+
+  # Byzantine worker
+  - id: 3
+    host: localhost  # Use actual IP for remote: e.g., 192.168.1.104
+    # port: 9004      # Unused: workers initiate outbound connections only
+    type: byzantine
+    # bind_host: "0.0.0.0"  # Unused: workers initiate outbound connections only
+    attack_scale: -1.0  # Empire attack scale
+
+
+# Example for actual remote deployment:
+#
+# server:
+#   host: 192.168.1.100
+#   port: 9000
+#   bind_host: "0.0.0.0"
+#
+# workers:
+#   - id: 0
+#     host: 192.168.1.101
+#     port: 9000
+#     type: honest
+#     data_shard: 0
+#
+#   - id: 1
+#     host: 192.168.1.102
+#     port: 9000
+#     type: honest
+#     data_shard: 1
+#
+#   - id: 2
+#     host: 192.168.1.103
+#     port: 9000
+#     type: byzantine
+#     attack_scale: -1.0
