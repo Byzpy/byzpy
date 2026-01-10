@@ -80,7 +80,11 @@ class Operator:
         worker_affinities = metadata.get("worker_affinities")
         if worker_affinities:
             subtasks = _assign_worker_affinities(subtasks, worker_affinities)
-        return await _run_subtasks_windowed(pool, subtasks, limit)
+
+        # Get shared semaphore from scheduler (if present)
+        subtask_semaphore = metadata.get("subtask_semaphore")
+
+        return await _run_subtasks_windowed(pool, subtasks, limit, subtask_semaphore)
 
 
 async def _maybe_await(val: Any) -> Any:
@@ -90,22 +94,51 @@ async def _maybe_await(val: Any) -> Any:
 
 
 async def _run_subtasks_windowed(
-    pool: ActorPool, subtasks: Iterable[SubTask], limit: int | None
+    pool: ActorPool,
+    subtasks: Iterable[SubTask],
+    limit: int | None,
+    semaphore: asyncio.Semaphore | None = None,
 ) -> list[Any]:
+    """
+    Run subtasks with a sliding window limit.
+
+    Parameters
+    ----------
+    pool : ActorPool
+        The actor pool to run subtasks on.
+    subtasks : Iterable[SubTask]
+        The subtasks to execute.
+    limit : int | None
+        Per-operator window limit. If None, defaults to pool.size * 8.
+        If negative, multiplied by pool.size.
+    semaphore : asyncio.Semaphore | None
+        Optional shared semaphore for cross-operator coordination.
+        When provided, this semaphore is used to limit total pending
+        subtasks across all operators sharing it (e.g., per-scheduler limit).
+        The per-operator `limit` still applies as a local cap.
+    """
     iterator = iter(subtasks)
 
+    # Per-operator limit (local cap)
     if limit is None or limit == 0:
-        limit = max(1, pool.size * 8)
+        local_limit = max(1, pool.size * 8)
     elif limit < 0:
-        limit = max(1, pool.size * abs(limit))
+        local_limit = max(1, pool.size * abs(limit))
+    else:
+        local_limit = limit
 
     pending: set[asyncio.Task[tuple[int, Any]]] = set()
     results: dict[int, Any] = {}
     total = 0
 
     async def _run_indexed(subtask: SubTask, order: int) -> tuple[int, Any]:
-        res = await pool.run_subtask(subtask)
-        return order, res
+        try:
+            res = await pool.run_subtask(subtask)
+            return order, res
+        finally:
+            # Release shared semaphore when subtask completes
+            if semaphore is not None:
+                semaphore.release()
 
     async def _schedule_next() -> bool:
         nonlocal total
@@ -113,11 +146,26 @@ async def _run_subtasks_windowed(
             st = next(iterator)
         except StopIteration:
             return False
-        pending.add(asyncio.create_task(_run_indexed(st, total)))
-        total += 1
+
+        # Acquire shared semaphore before submitting (if provided)
+        if semaphore is not None:
+            await semaphore.acquire()
+
+        # Create task with proper error handling to avoid semaphore deadlock
+        try:
+            task = asyncio.create_task(_run_indexed(st, total))
+            pending.add(task)
+            total += 1
+        except Exception:
+            # Release semaphore if task creation fails to prevent deadlock
+            if semaphore is not None:
+                semaphore.release()
+            raise
+
         return True
 
-    for _ in range(limit):
+    # Initial batch - respect both local limit and shared semaphore
+    for _ in range(local_limit):
         if not await _schedule_next():
             break
 
@@ -127,6 +175,7 @@ async def _run_subtasks_windowed(
             idx, value = task.result()
             results[idx] = value
             await _schedule_next()
+
     return [results[i] for i in range(total)]
 
 
