@@ -11,8 +11,6 @@ Training Algorithm: Decentralized SGD with Robust Gradient Aggregation
     3. Each node aggregates received gradients via CoordinateWiseMedian (robust aggregation)
     4. Each node applies the aggregated gradient to update its model: θ ← θ - lr * g_agg
 
-    This is textbook decentralized SGD with Byzantine-resilient aggregation.
-
 Architecture:
     ┌───────────────┐         ┌───────────────┐
     │   Node 0      │◄───────►│   Node 1      │
