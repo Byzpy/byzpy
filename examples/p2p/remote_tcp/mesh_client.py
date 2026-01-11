@@ -4,6 +4,15 @@ Fully Distributed Mesh P2P Training with MNIST.
 Each node runs on its own server and connects directly to all other nodes.
 No central server required - fully peer-to-peer mesh communication.
 
+Training Algorithm: Decentralized SGD with Robust Gradient Aggregation
+    Each round:
+    1. Each node computes gradients on its local minibatch (forward + backward pass)
+    2. Nodes broadcast their GRADIENT vectors to neighbors
+    3. Each node aggregates received gradients via CoordinateWiseMedian (robust aggregation)
+    4. Each node applies the aggregated gradient to update its model: θ ← θ - lr * g_agg
+
+    This is textbook decentralized SGD with Byzantine-resilient aggregation.
+
 Architecture:
     ┌───────────────┐         ┌───────────────┐
     │   Node 0      │◄───────►│   Node 1      │
@@ -132,21 +141,26 @@ def evaluate(model: torch.nn.Module, device: torch.device, data_root: str) -> Tu
     return loss_sum / total, correct / total
 
 
-def _flatten_params(model: nn.Module) -> torch.Tensor:
-    """Flatten model parameters into a single vector."""
-    params = []
+def _flatten_grads(model: nn.Module) -> torch.Tensor:
+    """Flatten model gradients into a single vector."""
+    grads = []
     for p in model.parameters():
-        params.append(p.data.flatten())
-    return torch.cat(params) if params else torch.tensor([])
+        if p.grad is not None:
+            grads.append(p.grad.flatten())
+        else:
+            grads.append(torch.zeros(p.numel(), device=p.device))
+    return torch.cat(grads) if grads else torch.tensor([])
 
 
-def _write_params(model: nn.Module, vec: torch.Tensor) -> None:
-    """Write parameter vector back into model."""
+def _apply_gradient(model: nn.Module, grad_vec: torch.Tensor, lr: float) -> None:
+    """Apply gradient vector to model parameters: θ ← θ - lr * grad."""
     offset = 0
-    for p in model.parameters():
-        n = p.numel()
-        p.data.copy_(vec[offset : offset + n].view_as(p).to(p.device))
-        offset += n
+    with torch.no_grad():
+        for p in model.parameters():
+            n = p.numel()
+            grad_chunk = grad_vec[offset : offset + n].view_as(p).to(p.device)
+            p.add_(grad_chunk, alpha=-lr)
+            offset += n
 
 
 async def run_honest_node(
@@ -186,10 +200,12 @@ async def run_honest_node(
         "data_loader": data_loader,
         "data_iter": data_iter_ref,
         "device": device,
+        "lr": lr,  # Store learning rate for apply_gradient
     }
 
-    # Register half-step pipeline
-    async def half_step(lr: float):
+    # Register compute_gradient pipeline: computes gradient but does NOT apply it
+    async def compute_gradient():
+        """Compute gradient on local minibatch, return gradient vector (not parameters)."""
         state = node_state
         try:
             x, y = next(state["data_iter"][0])
@@ -203,72 +219,88 @@ async def run_honest_node(
         loss = state["criterion"](logits, y)
         loss.backward()
 
-        with torch.no_grad():
-            for p in state["model"].parameters():
-                if p.grad is not None:
-                    p.add_(p.grad, alpha=-lr)
+        # Return the gradient vector (NOT updated parameters)
+        return _flatten_grads(state["model"])
 
-        return _flatten_params(state["model"])
-
-    half_step_op = CallableOp(half_step, input_mapping={"lr": "lr"})
-    half_step_graph = make_single_operator_graph(
-        node_name="half_step", operator=half_step_op, input_keys=("lr",)
+    compute_gradient_op = CallableOp(compute_gradient, input_mapping={})
+    compute_gradient_graph = make_single_operator_graph(
+        node_name="compute_gradient", operator=compute_gradient_op, input_keys=()
     )
-    node.application.register_pipeline("half_step", half_step_graph)
+    node.application.register_pipeline("compute_gradient", compute_gradient_graph)
 
-    # Register aggregation pipeline
+    # Register aggregation pipeline for gradients
     aggregator = CoordinateWiseMedian()
     aggregate_graph = make_single_operator_graph(
         node_name="aggregate", operator=aggregator, input_keys=("gradients",)
     )
     node.application.register_pipeline("aggregate", aggregate_graph)
 
-    # Register update model pipeline
-    async def update_model(param_vector: torch.Tensor):
-        _write_params(node_state["model"], param_vector)
+    # Register apply_gradient pipeline: applies aggregated gradient to model
+    async def apply_gradient(grad_vector: torch.Tensor):
+        """Apply aggregated gradient: θ ← θ - lr * grad_vector."""
+        _apply_gradient(node_state["model"], grad_vector, node_state["lr"])
 
-    update_model_op = CallableOp(update_model, input_mapping={"param_vector": "param_vector"})
-    update_model_graph = make_single_operator_graph(
-        node_name="update_model", operator=update_model_op, input_keys=("param_vector",)
+    apply_gradient_op = CallableOp(apply_gradient, input_mapping={"grad_vector": "grad_vector"})
+    apply_gradient_graph = make_single_operator_graph(
+        node_name="apply_gradient", operator=apply_gradient_op, input_keys=("grad_vector",)
     )
-    node.application.register_pipeline("update_model", update_model_graph)
+    node.application.register_pipeline("apply_gradient", apply_gradient_graph)
 
-    # Training state
-    gradient_cache: List[torch.Tensor] = []
-    self_half_step_result: torch.Tensor = None
+    # Training state with round-based synchronization
+    gradient_cache: Dict[int, List[torch.Tensor]] = {}  # round -> neighbor gradients
+    local_gradient: torch.Tensor = None  # this node's gradient for current round
+    current_round = 0
     rounds_completed = 0
+    round_complete_event = asyncio.Event()
 
     # Register gradient message handler
     async def on_gradient(from_id: str, payload: dict):
-        nonlocal gradient_cache, self_half_step_result, rounds_completed
+        nonlocal gradient_cache, local_gradient, current_round, rounds_completed
 
         if rounds_completed >= max_rounds:
             return
 
         gradient = payload.get("vector")
-        if gradient is not None:
-            gradient_cache.append(gradient)
+        round_num = payload.get("round", 0)
 
-        if self_half_step_result is not None and len(gradient_cache) >= 1:
+        if gradient is not None:
+            if round_num not in gradient_cache:
+                gradient_cache[round_num] = []
+            gradient_cache[round_num].append(gradient)
+
+        # Only aggregate if we have gradients for the current round
+        if (
+            local_gradient is not None
+            and current_round in gradient_cache
+            and len(gradient_cache[current_round]) >= 1
+        ):
             if rounds_completed >= max_rounds:
                 return
 
             try:
-                num_grads = len(gradient_cache) + 1
+                neighbor_grads = gradient_cache[current_round]
+                num_grads = len(neighbor_grads) + 1
+
+                # Aggregate gradients (local + neighbors) via robust aggregation
                 result = await node.execute_pipeline(
-                    "aggregate", {"gradients": [self_half_step_result] + gradient_cache}
+                    "aggregate", {"gradients": [local_gradient] + neighbor_grads}
                 )
-                aggregated = result.get("aggregate")
+                aggregated_grad = result.get("aggregate")
 
-                if aggregated is not None:
-                    await node.execute_pipeline("update_model", {"param_vector": aggregated})
+                # Apply aggregated gradient: θ ← θ - lr * aggregated_grad
+                if aggregated_grad is not None:
+                    await node.execute_pipeline("apply_gradient", {"grad_vector": aggregated_grad})
 
-                gradient_cache.clear()
+                # Clean up old rounds
+                gradient_cache.pop(current_round, None)
                 rounds_completed += 1
                 print(
                     f"[Node {node_id}] Round {rounds_completed}/{max_rounds} "
                     f"(aggregated {num_grads} gradients)"
                 )
+
+                # Signal that this round is complete
+                round_complete_event.set()
 
                 if rounds_completed % 10 == 0:
                     loss, acc = evaluate(node_state["model"], device, data_root)
@@ -279,9 +311,9 @@ async def run_honest_node(
 
     node.register_message_handler("gradient", on_gradient)
 
-    # Autonomous training loop
+    # Autonomous training loop with round synchronization (Decentralized SGD)
     async def training_loop():
-        nonlocal self_half_step_result, rounds_completed
+        nonlocal local_gradient, current_round, rounds_completed
 
         # Wait for all peers to connect
         print(f"[Node {node_id}] Waiting for peer connections...")
@@ -289,21 +321,38 @@ async def run_honest_node(
 
         connected = node.context.get_connected_peers()
         print(f"[Node {node_id}] Connected to {len(connected)} peers: {connected}")
-        print(f"[Node {node_id}] Starting training loop...")
+        print(f"[Node {node_id}] Starting decentralized SGD training loop...")
 
         while node._running and rounds_completed < max_rounds:
-            if rounds_completed >= max_rounds:
-                break
-
             try:
-                result = await node.execute_pipeline("half_step", {"lr": lr})
-                half_step_vector = result.get("half_step")
+                # Clear event for this round
+                round_complete_event.clear()
 
-                if half_step_vector is not None and rounds_completed < max_rounds:
-                    self_half_step_result = half_step_vector
-                    await node.broadcast_message("gradient", {"vector": half_step_vector})
+                # Step 1: Compute local gradient (forward + backward, but don't apply yet)
+                result = await node.execute_pipeline("compute_gradient", {})
+                grad_vector = result.get("compute_gradient")
 
-                await asyncio.sleep(0.2)
+                if grad_vector is not None and rounds_completed < max_rounds:
+                    local_gradient = grad_vector
+                    # Step 2: Broadcast gradient to neighbors
+                    await node.broadcast_message(
+                        "gradient", {"vector": grad_vector, "round": current_round}
+                    )
+
+                # Step 3 & 4 happen in on_gradient handler:
+                #   - Aggregate gradients from neighbors
+                #   - Apply aggregated gradient to model
+
+                # Wait for this round's aggregation to complete (with timeout)
+                try:
+                    await asyncio.wait_for(round_complete_event.wait(), timeout=10.0)
+                except asyncio.TimeoutError:
+                    print(f"[Node {node_id}] Round {current_round} timeout, retrying...")
+                    continue
+
+                # Move to next round
+                current_round = rounds_completed
+
             except Exception as e:
                 print(f"[Node {node_id}] Training step error: {e}")
                 await asyncio.sleep(0.5)
@@ -344,19 +393,23 @@ async def run_byzantine_node(
     )
     node.application.register_pipeline("broadcast", broadcast_graph)
 
-    gradient_cache: List[torch.Tensor] = []
+    gradient_cache: Dict[int, List[torch.Tensor]] = {}  # round -> gradients
+    current_round = 0
     rounds_completed = 0
 
     async def on_gradient(from_id: str, payload: dict):
         nonlocal gradient_cache
         gradient = payload.get("vector")
+        round_num = payload.get("round", 0)
         if gradient is not None:
-            gradient_cache.append(gradient)
+            if round_num not in gradient_cache:
+                gradient_cache[round_num] = []
+            gradient_cache[round_num].append(gradient)
 
     node.register_message_handler("gradient", on_gradient)
 
     async def attack_loop():
-        nonlocal gradient_cache, rounds_completed
+        nonlocal gradient_cache, current_round, rounds_completed
 
         print(f"[Node {node_id}] Waiting for peer connections...")
         await asyncio.sleep(3.0)
@@ -369,23 +422,28 @@ async def run_byzantine_node(
             if rounds_completed >= max_rounds:
                 break
 
-            if len(gradient_cache) > 0:
+            # Check if we have gradients for the current round
+            if current_round in gradient_cache and len(gradient_cache[current_round]) > 0:
                 try:
-                    template = gradient_cache[0]
+                    grads_for_round = gradient_cache[current_round]
+                    template = grads_for_round[0]
                     result = await node.execute_pipeline(
-                        "broadcast", {"neighbor_vectors": gradient_cache, "like": template}
+                        "broadcast", {"neighbor_vectors": grads_for_round, "like": template}
                     )
                     malicious = result.get("broadcast")
 
                     if malicious is not None and rounds_completed < max_rounds:
-                        await node.broadcast_message("gradient", {"vector": malicious})
-                        gradient_cache.clear()
+                        await node.broadcast_message(
+                            "gradient", {"vector": malicious, "round": current_round}
+                        )
+                        gradient_cache.pop(current_round, None)
                         rounds_completed += 1
+                        current_round = rounds_completed
                         print(f"[Node {node_id}] Attack round {rounds_completed}/{max_rounds}")
                 except Exception as e:
                     print(f"[Node {node_id}] Attack error: {e}")
 
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.1)
 
         print(f"[Node {node_id}] Attack completed ({rounds_completed} rounds)")
 
